@@ -4617,6 +4617,37 @@ async function tfMovePick(kind,id,at){
   subs.forEach(f=>it.push(['📁 '+f.name+' ›',()=>tfMovePick(kind,id,f.id)]));
   pick('نقل «'+item.name+'» إلى…'+(at?'  ('+tfPath(F,at)+')':''),it)}
 
+/* --- تحديد متعدد (v13.26): ☑ تحديد أدوات من قائمة أدواتي ← نقل لمجلد / حذف لعدة أدوات مرة وحدة --- */
+async function tfMoveMany(ids,at){
+  const[l,F]=await Promise.all([toolsList(),tfList()]);at=tfHas(F,at)?at:null;const it=[];
+  if(at){const af=F.find(x=>x.id===at);it.push(['↩ رجوع',()=>tfMoveMany(ids,tfParent(F,af))])}
+  it.push(['📍 انقل '+ids.length+' أداة هون: '+(at?tfPath(F,at):'الرئيسية'),async()=>{
+    const l2=await toolsList();l2.forEach(x=>{if(ids.includes(x.id)){if(at)x.f=at;else delete x.f}});
+    if(!(await toolsPut(l2))){gs('تعذّر النقل');return}
+    gs('انتقلت '+ids.length+' أداة ✓');toolsMenu(at)}]);
+  const subs=F.filter(f=>tfParent(F,f)===at);
+  if(subs.length)it.push('المجلدات');
+  subs.forEach(f=>it.push(['📁 '+f.name+' ›',()=>tfMoveMany(ids,f.id)]));
+  pick('نقل '+ids.length+' أداة إلى…'+(at?'  ('+tfPath(F,at)+')':''),it)}
+async function toolsSel(fid,sel,all){
+  sel=sel||new Set();const[l,F]=await Promise.all([toolsList(),tfList()]);fid=tfHas(F,fid)?fid:null;
+  for(const id of [...sel])if(!l.some(t=>t.id===id))sel.delete(id);
+  const vis=all?l:l.filter(t=>tfOfTool(F,t)===fid),n=sel.size,top=dlg.scrollTop,ids=()=>[...sel];
+  dlg.textContent='';dlg.hidden=false;dlg.append(mk('b','','☑ تحديد أدوات'+(n?'  ('+n+' محدّدة)':'')));
+  const B=(t,f,c)=>{const b=mk('button',c||'',t);b.onclick=f;dlg.append(b)};
+  B('↩ رجوع إلى أدواتي',()=>toolsMenu(fid));
+  B(all?'عرض: كل الأدوات (اضغط لعرض هالمجلد بس)':'عرض: '+(fid?'هالمجلد':'الرئيسية')+' (اضغط لعرض كل الأدوات)',()=>toolsSel(fid,sel,!all));
+  const allOn=vis.length>0&&vis.every(t=>sel.has(t.id));
+  B(allOn?'☐ إلغاء تحديد الكل':'☑ تحديد الكل ('+vis.length+')',()=>{vis.forEach(t=>allOn?sel.delete(t.id):sel.add(t.id));toolsSel(fid,sel,all)});
+  if(n){B('📁 نقل المحدّد ('+n+') لمجلد',()=>tfMoveMany(ids(),fid));
+    B('🗑 حذف المحدّد ('+n+')',()=>pick('حذف '+n+' أداة نهائياً؟ (بتنمسح مع بياناتها)',[['نعم، احذفهم',async()=>{
+      const gone=ids();for(const id of gone){const r=TOPEN.get(id);if(r)toolClose(r,true);await dbq('put','nbtool:'+id,null);await dbq('put','nbtooldata:'+id,null)}
+      const l2=(await toolsList()).filter(q=>!gone.includes(q.id));if(!(await toolsPut(l2))){gs('تعذّر الحذف');return}
+      gs('انحذفت '+gone.length+' أداة ✓');toolsMenu(fid)}]]),'danger')}
+  dlg.append(mk('div','st',vis.length?'اضغط على الأداة لتحديدها':'ما في أدوات هون.'));
+  vis.forEach(t=>{const p=all?tfPath(F,tfOfTool(F,t)):'';B((sel.has(t.id)?'☑ ':'☐ ')+t.name+(p?'   — 📁 '+p:''),()=>{if(sel.has(t.id))sel.delete(t.id);else sel.add(t.id);toolsSel(fid,sel,all)})});
+  B('إغلاق',()=>{dlg.hidden=true},'danger');dlg.scrollTop=top}
+
 /* --- إضافة أداة من ملف --- */
 async function toolsAdd(f){
   const fid0=htTarget==='tool'?toolsTgtF:null;toolsTgtF=null;
@@ -4644,6 +4675,7 @@ async function toolsMenu(fid){
   it.push(['＋ إضافة أداة من ملف HTML'+(cur?' (جوا هالمجلد)':''),()=>{htTarget='tool';toolsTgtF=fid;htIn.click()}]);
   it.push(['📁＋ مجلد جديد'+(cur?' (جوا هالمجلد)':''),()=>tfNew(fid)]);
   if(cur){it.push(['✏️ تغيير اسم المجلد',()=>tfRename(fid)],['📁 نقل المجلد لمجلد ثاني',()=>tfMovePick('f',fid,tfParent(F,cur))],['🗑 حذف المجلد',()=>tfDelete(fid)])}
+  if(l.length)it.push(['☑ تحديد أدوات (نقل / حذف عدة أدوات)',()=>toolsSel(fid)]);
   if(l.length)it.push(['⚙ إدارة الأدوات (اسم / نقل / بيانات / حذف)',()=>toolsManage()]);
   pick(cur?'📁 '+tfPath(F,fid):'🧩 أدواتي',it)}
 async function toolsManage(){
