@@ -3614,7 +3614,7 @@ async function exportAll(only){
   gs('عم يجهّز النسخة…');flushSave();
   const keys=new Set(),bgs={};bks.forEach(b=>b.pages.forEach(p=>{if(p.bg)keys.add(p.bg);if(p.live)keys.add(p.live);(p.items||[]).forEach(i=>{if(i.hb)keys.add(i.hb)})}));
   for(const k of keys){const u=await dbq('get',k);if(u)bgs[k]=u}
-  let blob;try{blob=new Blob([JSON.stringify(one?{app:'daftari',v:1,ts:Date.now(),lib:{books:[one],folders:[]},bgs}:{app:'daftari',v:1,ts:Date.now(),lib:S,bgs,set:localStorage.getItem('nbset'),pal:localStorage.getItem('nbpalc')})],{type:'application/json'})}catch(e){gs(one?'حجم هالدفتر كبير، جرّب تقسّمه لدفترين':'حجم الدفاتر كبير على نسخة وحدة، جرّب تحفظ كل دفتر لحاله (من ⋯ على الدفتر)');return}
+  let blob;try{blob=new Blob([JSON.stringify(one?{app:'daftari',v:1,ts:Date.now(),lib:{books:[one],folders:[]},bgs}:{app:'daftari',v:1,ts:Date.now(),lib:S,bgs,set:localStorage.getItem('nbset'),pal:localStorage.getItem('nbpalc'),lpal:localStorage.getItem('nblzpal')})],{type:'application/json'})}catch(e){gs(one?'حجم هالدفتر كبير، جرّب تقسّمه لدفترين':'حجم الدفاتر كبير على نسخة وحدة، جرّب تحفظ كل دفتر لحاله (من ⋯ على الدفتر)');return}
   const name=(one?'daftari-'+((one.title||'دفتر').replace(/[\\\/:*?"<>|\s]+/g,'-').slice(0,40)||'دفتر'):'daftari-backup')+'-'+new Date().toISOString().slice(0,10)+'.json',file=new File([blob],name,{type:'application/json'}),mb=(blob.size/1048576).toFixed(1);
   try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});if(!one){bkMark();bkNote()}gs('تم حفظ النسخة ✓');return}}catch(e){if(e&&e.name==='AbortError')return}
   dlFile(blob,name);if(!one){bkMark();bkNote()}gs('نزّلت النسخة ✓ ('+mb+' MB)')}
@@ -3628,8 +3628,8 @@ function importAll(file){file.text().then(async t=>{let d;try{d=JSON.parse(t)}ca
   S.folders.forEach(f=>{if(f.parent&&!hf.has(f.parent))f.parent=null});
   for(const k in(d.bgs||{}))await dbq('put',k,d.bgs[k]);
   const okS=s=>{try{return typeof s==='string'&&!!s&&typeof JSON.parse(s)==='object'}catch(e){return false}};
-  const askSet=()=>{const a=okS(d.set)&&d.set!==localStorage.getItem('nbset'),p=okS(d.pal)&&d.pal!==localStorage.getItem('nbpalc');if(!a&&!p)return;
-    pick('استعادة إعدادات الأقلام ولوحة الألوان من النسخة؟ (بيعيد تشغيل الصفحة)',[['✓ نعم، استعدها',()=>{try{if(a)localStorage.setItem('nbset',d.set);if(p)localStorage.setItem('nbpalc',d.pal)}catch(e){}flushSave();setTimeout(()=>location.reload(),300)}],['لا، خلّيها متل ما هي',()=>{}]])};
+  const askSet=()=>{const a=okS(d.set)&&d.set!==localStorage.getItem('nbset'),p=okS(d.pal)&&d.pal!==localStorage.getItem('nbpalc'),l=okS(d.lpal)&&d.lpal!==localStorage.getItem('nblzpal');if(!a&&!p&&!l)return;
+    pick('استعادة إعدادات الأقلام ولوحة الألوان من النسخة؟ (بيعيد تشغيل الصفحة)',[['✓ نعم، استعدها',()=>{try{if(a)localStorage.setItem('nbset',d.set);if(p)localStorage.setItem('nbpalc',d.pal);if(l)localStorage.setItem('nblzpal',d.lpal)}catch(e){}flushSave();setTimeout(()=>location.reload(),300)}],['لا، خلّيها متل ما هي',()=>{}]])};
   save();flushSave();showLib();
   gs(nb||nf?'انستعاد '+nb+' دفتر و'+nf+' مجلد ✓':nw.length?'في دفاتر أحدث بالنسخة، شوف الخيارات':'كل الدفاتر بالنسخة موجودة أصلًا');
   if(nw.length){pick('في '+nw.length+' دفتر نسخته بالملف أحدث من اللي عندك',[['↻ استبدلهم بالأحدث (بنحتفظ بنسختك القديمة كدفتر جنبه)',()=>{
@@ -3883,31 +3883,36 @@ document.addEventListener('pointerdown',e=>{
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)chk()});
   setInterval(chk,600000);setTimeout(chk,4000)
 })();
-/* (5) editable colour palette: long-press a swatch to change/delete it, + adds the current colour */
+/* (5) editable colour palette: long-press a swatch to change/delete it, + adds the current colour. v13.28: نفس الشي لألوان الليزر (مجموعة 'l'، مفتاح nblzpal) */
 (()=>{const sw=$('sw'),cpIn=sw.querySelector('.cpw')||sw.querySelector('input[type=color]'),HEX=/^#[0-9a-f]{6}$/i;
-  const normals=()=>[...sw.querySelectorAll('button.sw[data-g="n"]:not(.add)')];
-  const savePal=()=>{try{localStorage.setItem('nbpalc',JSON.stringify(normals().map(b=>b.dataset.c)))}catch(e){}};
-  const addBtn=mk('button','sw add','+');addBtn.dataset.g='n';addBtn.title='أضف اللون الحالي للوحة';
-  addBtn.style.cssText='background:transparent;border:2px dashed var(--line);font-size:18px;line-height:1;color:var(--mute)';
-  const mkN=c=>{const b=mk('button','sw');b.style.background=c;b.dataset.c=c;b.dataset.g='n';
-    b.onclick=()=>{color=b.dataset.c;slotSync();saveSet();syncUI()};sw.insertBefore(b,addBtn);return b};
-  {const first=normals();const last=first[first.length-1];sw.insertBefore(addBtn,last?last.nextSibling:cpIn)}
-  let st=null;try{st=JSON.parse(localStorage.getItem('nbpalc'))}catch(e){}
-  if(Array.isArray(st)&&st.length>=3&&st.length<=14&&st.every(c=>typeof c==='string'&&HEX.test(c))){normals().forEach(b=>b.remove());st.forEach(mkN)}
-  addBtn.onclick=()=>{
-    if(normals().length>=14){gs('اللوحة ممتلئة (١٤ لون)');return}
-    if(normals().some(b=>b.dataset.c.toLowerCase()===color.toLowerCase())){gs('هاللون موجود باللوحة');return}
-    mkN(color);savePal();syncUI();gs('انضاف اللون للوحة')};
-  /* v13.27: «غيّر هاللون» كان بيعمل .click() برمجي على input مخفي (pointer-events:none) وسفاري بالآيباد بيتجاهله. هلأ الـinput الحقيقي (شفاف) فوق الزر نفسه فلمستك بتفتح المنتقي مباشرة */
-  function swMenu(b){const c0=b.dataset.c;
-    const upd=v=>{if(!HEX.test(v))return;const was=String(b.dataset.c).toLowerCase()===String(color).toLowerCase();b.dataset.c=v;b.style.background=v;if(was){color=v;slotSync();saveSet()}savePal();syncUI()};
-    pick('لون اللوحة',[['● غيّر هاللون',()=>{}],['🗑 احذفه من اللوحة',()=>{if(normals().length<=3){gs('لازم يضل ٣ ألوان على الأقل');return}b.remove();savePal();syncUI()}]]);
-    const f=dlg.querySelector('button');if(!f)return;f.style.color=c0;f.style.position='relative';f.style.overflow='hidden';
-    const ci=document.createElement('input');ci.type='color';ci.value=HEX.test(c0)?c0:'#000000';ci.setAttribute('aria-label','غيّر هاللون');
-    ci.style.cssText='position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;margin:0;padding:0;border:0;cursor:pointer';
-    f.onclick=e=>e.preventDefault();ci.oninput=()=>upd(ci.value);ci.onchange=()=>{upd(ci.value);dlg.hidden=true};f.append(ci)}
+  const P={};
+  const mkPal=(g,key,cur,setCur,addTitle)=>{
+    const items=()=>[...sw.querySelectorAll('button.sw[data-g="'+g+'"]:not(.add)')];
+    const savePal=()=>{try{localStorage.setItem(key,JSON.stringify(items().map(b=>b.dataset.c)))}catch(e){}};
+    const addBtn=mk('button','sw add','+');addBtn.dataset.g=g;addBtn.title=addTitle;
+    addBtn.style.cssText='background:transparent;border:2px dashed var(--line);font-size:18px;line-height:1;color:var(--mute)';
+    const mkN=c=>{const b=mk('button','sw');b.style.background=c;b.dataset.c=c;b.dataset.g=g;
+      b.onclick=()=>{setCur(b.dataset.c);slotSync();saveSet();syncUI()};sw.insertBefore(b,addBtn);return b};
+    {const first=items();const last=first[first.length-1];sw.insertBefore(addBtn,last?last.nextSibling:cpIn)}
+    let st=null;try{st=JSON.parse(localStorage.getItem(key))}catch(e){}
+    if(Array.isArray(st)&&st.length>=3&&st.length<=14&&st.every(c=>typeof c==='string'&&HEX.test(c))){items().forEach(b=>b.remove());st.forEach(mkN)}
+    addBtn.onclick=()=>{
+      if(items().length>=14){gs('اللوحة ممتلئة (١٤ لون)');return}
+      if(items().some(b=>b.dataset.c.toLowerCase()===String(cur()).toLowerCase())){gs('هاللون موجود باللوحة');return}
+      mkN(cur());savePal();syncUI();gs('انضاف اللون للوحة')};
+    /* v13.27: «غيّر هاللون» كان بيعمل .click() برمجي على input مخفي (pointer-events:none) وسفاري بالآيباد بيتجاهله. هلأ الـinput الحقيقي (شفاف) فوق الزر نفسه فلمستك بتفتح المنتقي مباشرة */
+    P[g]=function swMenu(b){const c0=b.dataset.c;
+      const upd=v=>{if(!HEX.test(v))return;const was=String(b.dataset.c).toLowerCase()===String(cur()).toLowerCase();b.dataset.c=v;b.style.background=v;if(was){setCur(v);slotSync();saveSet()}savePal();syncUI()};
+      pick(g==='l'?'لون الليزر':'لون اللوحة',[['● غيّر هاللون',()=>{}],['🗑 احذفه من اللوحة',()=>{if(items().length<=3){gs('لازم يضل ٣ ألوان على الأقل');return}b.remove();savePal();syncUI()}]]);
+      const f=dlg.querySelector('button');if(!f)return;f.style.color=c0;f.style.position='relative';f.style.overflow='hidden';
+      const ci=document.createElement('input');ci.type='color';ci.value=HEX.test(c0)?c0:'#000000';ci.setAttribute('aria-label','غيّر هاللون');
+      ci.style.cssText='position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;margin:0;padding:0;border:0;cursor:pointer';
+      f.onclick=e=>e.preventDefault();ci.oninput=()=>upd(ci.value);ci.onchange=()=>{upd(ci.value);dlg.hidden=true};f.append(ci)};
+  };
+  mkPal('n','nbpalc',()=>color,v=>{color=v},'أضف اللون الحالي للوحة');
+  mkPal('l','nblzpal',()=>lzC,v=>{lzC=v},'أضف اللون الحالي لألوان الليزر');
   let tm=0,lp=false,sx=0,sy=0;
-  sw.addEventListener('pointerdown',e=>{const b=e.target.closest('button.sw[data-g="n"]:not(.add)');if(!b)return;lp=false;sx=e.clientX;sy=e.clientY;clearTimeout(tm);tm=setTimeout(()=>{lp=true;swMenu(b)},550)},true);
+  sw.addEventListener('pointerdown',e=>{const b=e.target.closest('button.sw:not(.add)');if(!b||!P[b.dataset.g])return;lp=false;sx=e.clientX;sy=e.clientY;clearTimeout(tm);tm=setTimeout(()=>{lp=true;P[b.dataset.g](b)},550)},true);
   sw.addEventListener('pointermove',e=>{if(tm&&Math.hypot(e.clientX-sx,e.clientY-sy)>8)clearTimeout(tm)},true);
   ['pointerup','pointercancel','pointerleave'].forEach(t=>sw.addEventListener(t,()=>clearTimeout(tm),true));
   sw.addEventListener('click',e=>{if(lp){lp=false;e.stopPropagation();e.preventDefault()}},true);
