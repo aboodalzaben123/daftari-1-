@@ -3339,6 +3339,62 @@ function wfTest(){
     finally{clearTimeout(tm);go.disabled=false}};
   cl.onclick=()=>dlg.hidden=true;
   dlg.append(mk('b','','🐺 اختبار Wolfram Cloud'),mk('div','st','رابط الـ API المنشور:'),ui,mk('div','st','نص الاختبار:'),xi,go,out,cl)}
+/* ===== رسم Wolfram Cloud (تجريبي): بيبعت الاقتران لـ API على Wolfram Cloud وبيرجع صورة الرسمة، وبتقدر تدرجها بالصفحة ===== */
+function wfConv(s){
+  const AD='٠١٢٣٤٥٦٧٨٩';
+  s=String(s).replace(/[٠-٩]/g,c=>AD.indexOf(c)).replace(/٫/g,'.').replace(/[×·]/g,'*').replace(/÷/g,'/').replace(/[−–]/g,'-').replace(/π/g,'Pi').replace(/²/g,'^2').replace(/³/g,'^3').replace(/،/g,',').replace(/؛/g,';');
+  const FN={sin:'Sin',cos:'Cos',tan:'Tan',cot:'Cot',sec:'Sec',csc:'Csc',asin:'ArcSin',acos:'ArcCos',atan:'ArcTan',arcsin:'ArcSin',arccos:'ArcCos',arctan:'ArcTan',sinh:'Sinh',cosh:'Cosh',tanh:'Tanh',sqrt:'Sqrt',exp:'Exp',ln:'Log',log:'Log10',log2:'Log2',abs:'Abs',floor:'Floor',ceil:'Ceiling',round:'Round',sign:'Sign',max:'Max',min:'Min',mod:'Mod',piecewise:'Piecewise',gamma:'Gamma',erf:'Erf',sinc:'Sinc'};
+  let out='',st=[],i=0;
+  while(i<s.length){
+    const m=/^[A-Za-z]+\d*/.exec(s.slice(i));
+    if(m){const w=m[0],lw=w.toLowerCase();let j=i+w.length;
+      if(FN[lw]&&/^\s*\(/.test(s.slice(j))){out+=FN[lw]+'[';st.push(1);i=s.indexOf('(',j)+1;continue}
+      out+=lw==='pi'?'Pi':w==='e'?'E':w;i=j;continue}
+    const c=s[i];
+    if(c==='('){st.push(0);out+='('}else if(c===')'){out+=st.pop()?']':')'}else out+=c;
+    i++}
+  return out}
+function wfPlot(){
+  const TY=[
+    {k:'plot',l:'اقتران y = f(x)',ph:'sin(x); x^2/4   (افصل بين اقترانين بـ ؛)',a:['-10','10'],b:['',''],al:'x من / إلى',bl:'y من / إلى (فاضي = تلقائي)'},
+    {k:'implicit',l:'معادلة أو متباينة بـ x و y',ph:'x^2+y^2=25     أو     y>x^2',a:['-10','10'],b:['-10','10'],al:'x من / إلى',bl:'y من / إلى'},
+    {k:'param',l:'بارامتري (x(t) , y(t))',ph:'cos(t), sin(2t)',a:['0','6.2832'],b:null,al:'t من / إلى'},
+    {k:'polar',l:'قطبي r(t)',ph:'1+cos(t)',a:['0','6.2832'],b:null,al:'t من / إلى'},
+    {k:'plot3d',l:'ثلاثي الأبعاد z = f(x,y)',ph:'sin(x)*cos(y)',a:['-5','5'],b:['-5','5'],al:'x من / إلى',bl:'y من / إلى'}];
+  let base='',cur=null;
+  try{base=localStorage.getItem('wf_plot_url')||'';if(!base){const t=localStorage.getItem('wf_url')||'';if(t)base=t.split('?')[0].replace(/daftari-test$/,'daftari-plot')}}catch(e){}
+  dlg.textContent='';dlg.hidden=false;
+  const LTR='font-size:16px;direction:ltr;text-align:left',lab=t=>{const d=mk('div','st',t);d.style.cssText='margin:6px 4px 0';return d};
+  const ui=mk('input','cin'),ty=mk('select','cin'),fi=mk('input','cin'),a0=mk('input','cin'),a1=mk('input','cin'),b0=mk('input','cin'),b1=mk('input','cin'),
+    out=mk('div','st'),img=document.createElement('img'),go=mk('button','primary','ارسم'),ins=mk('button','','📌 أدرج الرسمة بالصفحة'),cl=mk('button','danger','إغلاق'),
+    ra=mk('div'),rbx=mk('div'),la=lab(''),lb=lab('');
+  ui.placeholder='https://www.wolframcloud.com/obj/.../daftari-plot';ui.style.cssText=LTR;ui.value=base;
+  TY.forEach((t,i)=>{const o=document.createElement('option');o.value=i;o.textContent=t.l;ty.append(o)});ty.style.cssText='font-size:16px;direction:rtl';
+  fi.style.cssText=LTR;[a0,a1,b0,b1].forEach(x=>{x.style.cssText=LTR+';flex:1;min-width:0';x.setAttribute('inputmode','decimal')});
+  ra.style.cssText=rbx.style.cssText='display:flex;gap:8px;direction:ltr';ra.append(a0,a1);rbx.append(b0,b1);
+  out.style.cssText='white-space:pre-wrap;direction:rtl;text-align:right;margin:6px 4px;line-height:1.7';
+  img.style.cssText='display:none;max-width:100%;max-height:42vh;margin:6px auto;background:#fff;border-radius:8px;object-fit:contain';ins.style.display='none';
+  const fill=()=>{const t=TY[ty.value];fi.placeholder=t.ph;a0.value=t.a[0];a1.value=t.a[1];la.textContent=t.al;
+    if(t.b){b0.value=t.b[0];b1.value=t.b[1];lb.textContent=t.bl;lb.style.display=rbx.style.display='';rbx.style.display='flex'}else{b0.value=b1.value='';lb.style.display=rbx.style.display='none'}};
+  ty.onchange=fill;fill();
+  const nz=v=>String(v).trim().replace(/[٠-٩]/g,c=>'٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/٫/g,'.');
+  go.onclick=async()=>{
+    const t=TY[ty.value],u=ui.value.trim().split('?')[0];
+    if(!/^https:\/\//.test(u)){out.textContent='الصق رابط API الرسم (اللي آخره daftari-plot)';return}
+    if(!fi.value.trim()){out.textContent='اكتب الاقتران أولاً';return}
+    try{localStorage.setItem('wf_plot_url',u)}catch(e){}
+    const q=new URLSearchParams({type:t.k,f:wfConv(fi.value),a0:nz(a0.value),a1:nz(a1.value),b0:nz(b0.value)||'auto',b1:nz(b1.value)||'auto'});
+    out.textContent='جاري الرسم… (أول مرة ممكن ياخد كم ثانية)';go.disabled=true;ins.style.display='none';
+    const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),40000);
+    try{
+      const r=await fetch(u+'?'+q,{signal:ac.signal}),bl=await r.blob();
+      if(r.ok&&/^image\//.test(bl.type)){cur=bl;if(img._u)URL.revokeObjectURL(img._u);img._u=URL.createObjectURL(bl);img.src=img._u;img.style.display='block';ins.style.display='';out.textContent='✓ تم'}
+      else{img.style.display='none';out.textContent='✗ '+(await bl.text()).slice(0,200)+'\n(الحالة '+r.status+')'}}
+    catch(e){img.style.display='none';out.textContent=(e.name==='AbortError'?'✗ انتهت المهلة':'✗ فشل النداء')+'\nتأكد من الرابط ومن النت، وإن الـ API منشور بصلاحية Public.'}
+    finally{clearTimeout(tm);go.disabled=false}};
+  ins.onclick=()=>{if(!cur)return;dlg.hidden=true;addImg(new File([cur],'wolfram.png',{type:'image/png'}))};
+  cl.onclick=()=>dlg.hidden=true;
+  dlg.append(mk('b','','🐺 رسم Wolfram'),lab('رابط API الرسم:'),ui,lab('نوع الرسمة:'),ty,lab('التعبير:'),fi,la,ra,lb,rbx,go,out,img,ins,cl)}
 $('moreB').onclick=()=>pick('الدفتر',[
   'هاي الصفحة',
   [(book.pages[curPg]&&book.pages[curPg].bm?'⭐ شيل علامة الصفحة':'☆ علّم الصفحة'),mcl('bmB')],
@@ -3365,6 +3421,7 @@ $('moreB').onclick=()=>pick('الدفتر',[
   'أدوات',
   ['🧮 حاسبة ورسم',mcl('calcB')],
   ['🐺 اختبار Wolfram Cloud',wfTest],
+  ['🐺 رسم Wolfram',wfPlot],
   ['📖 دليل التطبيق (شرح كل الأدوات)',()=>{if(window.__guide)window.__guide.open()}],
   ['❓ وضع المساعدة (المس أداة لتعرف شو بتعمل)',()=>{if(window.__guide)window.__guide.help()}],
   ['⚙ إعدادات اللمس ›',()=>pick('إعدادات اللمس',[
