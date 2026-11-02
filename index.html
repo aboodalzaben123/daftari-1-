@@ -3342,14 +3342,14 @@ function wfTest(){
 /* ===== رسم Wolfram Cloud (تجريبي): بيبعت الاقتران لـ API على Wolfram Cloud وبيرجع صورة الرسمة، وبتقدر تدرجها بالصفحة ===== */
 function wfConv(s){
   const AD='٠١٢٣٤٥٦٧٨٩';
-  s=String(s).replace(/[٠-٩]/g,c=>AD.indexOf(c)).replace(/٫/g,'.').replace(/[×·]/g,'*').replace(/÷/g,'/').replace(/[−–]/g,'-').replace(/π/g,'Pi').replace(/²/g,'^2').replace(/³/g,'^3').replace(/،/g,',').replace(/؛/g,';');
+  s=String(s).replace(/[٠-٩]/g,c=>AD.indexOf(c)).replace(/٫/g,'.').replace(/[×·]/g,'*').replace(/÷/g,'/').replace(/[−–]/g,'-').replace(/π/g,'Pi').replace(/∞/g,'Infinity').replace(/²/g,'^2').replace(/³/g,'^3').replace(/،/g,',').replace(/؛/g,';');
   const FN={sin:'Sin',cos:'Cos',tan:'Tan',cot:'Cot',sec:'Sec',csc:'Csc',asin:'ArcSin',acos:'ArcCos',atan:'ArcTan',arcsin:'ArcSin',arccos:'ArcCos',arctan:'ArcTan',sinh:'Sinh',cosh:'Cosh',tanh:'Tanh',sqrt:'Sqrt',exp:'Exp',ln:'Log',log:'Log10',log2:'Log2',abs:'Abs',floor:'Floor',ceil:'Ceiling',round:'Round',sign:'Sign',max:'Max',min:'Min',mod:'Mod',piecewise:'Piecewise',gamma:'Gamma',erf:'Erf',sinc:'Sinc'};
   let out='',st=[],i=0;
   while(i<s.length){
     const m=/^[A-Za-z]+\d*/.exec(s.slice(i));
     if(m){const w=m[0],lw=w.toLowerCase();let j=i+w.length;
       if(FN[lw]&&/^\s*\(/.test(s.slice(j))){out+=FN[lw]+'[';st.push(1);i=s.indexOf('(',j)+1;continue}
-      out+=lw==='pi'?'Pi':w==='e'?'E':w;i=j;continue}
+      out+=lw==='pi'?'Pi':(lw==='inf'||lw==='infinity')?'Infinity':w==='e'?'E':w;i=j;continue}
     const c=s[i];
     if(c==='('){st.push(0);out+='('}else if(c===')'){out+=st.pop()?']':')'}else out+=c;
     i++}
@@ -3395,6 +3395,66 @@ function wfPlot(){
   ins.onclick=()=>{if(!cur)return;dlg.hidden=true;addImg(new File([cur],'wolfram.png',{type:'image/png'}))};
   cl.onclick=()=>dlg.hidden=true;
   dlg.append(mk('b','','🐺 رسم Wolfram'),lab('رابط API الرسم:'),ui,lab('نوع الرسمة:'),ty,lab('التعبير:'),fi,la,ra,lb,rbx,go,out,img,ins,cl)}
+/* ===== حساب Wolfram Cloud (تجريبي): تكامل، مشتقة، نهاية، حل معادلات. النتيجة بتنعرض بلاتيكس وبتقدر تدرجها بالصفحة ===== */
+function wfCalc(){
+  const OP=[
+    {k:'int',l:'تكامل غير محدد  ∫',ph:'x^2*sin(x)'},
+    {k:'dint',l:'تكامل محدد  ∫ من a إلى b',ph:'x^2*sin(x)',ab:1},
+    {k:'diff',l:'مشتقة',ph:'x^2*sin(x)',n:1},
+    {k:'limit',l:'نهاية',ph:'sin(x)/x',lm:1},
+    {k:'solve',l:'حل معادلة / نظام / متباينة',ph:'x^2-5x+6=0     (نظام: x+y=3 ؛ x-y=1)',vs:1}];
+  let base='',cur='';
+  try{base=localStorage.getItem('wf_calc_url')||'';if(!base){const t=localStorage.getItem('wf_plot_url')||localStorage.getItem('wf_url')||'';if(t)base=t.split('?')[0].replace(/daftari-(plot|test)$/,'daftari-calc')}}catch(e){}
+  dlg.textContent='';dlg.hidden=false;
+  const LTR='font-size:16px;direction:ltr;text-align:left',lab=t=>{const d=mk('div','st',t);d.style.cssText='margin:6px 4px 0';return d};
+  const ui=mk('input','cin'),op=mk('select','cin'),fi=mk('input','cin'),vi=mk('input','cin'),ai=mk('input','cin'),bi=mk('input','cin'),ni=mk('input','cin'),di=mk('select','cin'),
+    out=mk('div','st'),box=mk('div'),go=mk('button','primary','احسب'),ins=mk('button','','📌 أدرج النتيجة بالصفحة'),cp=mk('button','','نسخ كود لاتيكس'),cl=mk('button','danger','إغلاق'),
+    rv=mk('div'),rab=mk('div'),rn=mk('div'),rd=mk('div'),lv=lab('المتغير:'),lab_=lab(''),lN=lab('رتبة المشتقة:'),lD=lab('الاتجاه:');
+  ui.placeholder='https://www.wolframcloud.com/obj/.../daftari-calc';ui.style.cssText=LTR;ui.value=base;
+  OP.forEach((t,i)=>{const o=document.createElement('option');o.value=i;o.textContent=t.l;op.append(o)});op.style.cssText='font-size:16px;direction:rtl';
+  [['من الجهتين',0],['من اليمين  (+)',1],['من اليسار  (−)',-1]].forEach(([l,v])=>{const o=document.createElement('option');o.value=v;o.textContent=l;di.append(o)});di.style.cssText='font-size:16px;direction:rtl';
+  fi.style.cssText=vi.style.cssText=ai.style.cssText=bi.style.cssText=ni.style.cssText=LTR;ai.style.flex=bi.style.flex='1';ai.style.minWidth=bi.style.minWidth='0';
+  rab.style.cssText='display:flex;gap:8px;direction:ltr';rab.append(ai,bi);vi.value='x';ni.value='1';ni.setAttribute('inputmode','numeric');
+  out.style.cssText='white-space:pre-wrap;direction:rtl;text-align:right;margin:6px 4px;line-height:1.7';box.style.cssText='margin:4px 0;overflow-x:auto;direction:ltr;text-align:center';
+  ins.style.display=cp.style.display='none';
+  const fill=()=>{const t=OP[op.value];fi.placeholder=t.ph;
+    lv.textContent=t.vs?'المتغيرات (مثلاً x أو x,y):':'المتغير:';
+    lab_.textContent=t.ab?'الحدود  a (من)  و  b (إلى)  — بتقدر تكتب inf أو pi':t.lm?'النهاية عند  (a):  بتقدر تكتب inf أو -inf':'';
+    ai.placeholder=t.ab?'a  مثلاً 0':'a';bi.placeholder='b  مثلاً pi';
+    lab_.style.display=rab.style.display=(t.ab||t.lm)?'':'none';rab.style.display=(t.ab||t.lm)?'flex':'none';bi.style.display=t.ab?'':'none';
+    lN.style.display=ni.style.display=t.n?'':'none';lD.style.display=di.style.display=t.lm?'':'none'};
+  op.onchange=fill;fill();
+  const nz=v=>wfConv(String(v).trim());
+  const show=async tex=>{box.textContent='';try{const M=await loadMJ({}),n=M.tex2svg(tex,{display:true});box.append(n)}catch(e){box.textContent=tex}};
+  go.onclick=async()=>{
+    const t=OP[op.value],u=ui.value.trim().split('?')[0];
+    if(!/^https:\/\//.test(u)){out.textContent='الصق رابط API الحساب (اللي آخره daftari-calc)';return}
+    if(!fi.value.trim()){out.textContent='اكتب التعبير أولاً';return}
+    const V=nz(vi.value).replace(/\s/g,'')||'x',A=nz(ai.value),B=t.ab?nz(bi.value):'';
+    if(t.ab&&(!A||!B)){out.textContent='اكتب حدّي التكامل a و b';return}
+    if(t.lm&&!A){out.textContent='اكتب النقطة اللي بتقترب منها';return}
+    try{localStorage.setItem('wf_calc_url',u)}catch(e){}
+    const N=t.n?(parseInt(nz(ni.value),10)||1):t.lm?parseInt(di.value,10):0;
+    const q=new URLSearchParams({op:t.k,f:wfConv(fi.value),v:V,a:t.ab||t.lm?A:'',b:B,n:String(Math.max(-1,Math.min(9,N)))});
+    out.textContent='جاري الحساب…';go.disabled=true;ins.style.display=cp.style.display='none';box.textContent='';
+    const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),40000);
+    try{
+      const r=await fetch(u+'?'+q,{signal:ac.signal}),tx=await r.text();
+      if(!r.ok){out.textContent='✗ '+tx.slice(0,200);return}
+      const j=JSON.parse(tx);let tex;
+      if(t.k==='int')tex='\\int '+j.f+'\\,d'+V+' = '+j.r+' + C';
+      else if(t.k==='dint')tex='\\int_{'+j.a+'}^{'+j.b+'} '+j.f+'\\,d'+V+' = '+j.r+(j.n?' \\approx '+j.n:'');
+      else if(t.k==='diff')tex=(N>1?'\\frac{d^{'+N+'}}{d'+V+'^{'+N+'}}':'\\frac{d}{d'+V+'}')+'\\left('+j.f+'\\right) = '+j.r;
+      else if(t.k==='limit')tex='\\lim_{'+V+' \\to '+j.a+(N===1?'^{+}':N===-1?'^{-}':'')+'} '+j.f+' = '+j.r+(j.n?' \\approx '+j.n:'');
+      else tex=j.f+' \\;\\Longrightarrow\\; '+j.r;
+      cur=tex;out.textContent='✓';await show(tex);ins.style.display=cp.style.display=''}
+    catch(e){out.textContent=(e.name==='AbortError'?'✗ انتهت المهلة':'✗ فشل النداء')+'\nتأكد من الرابط ومن النت، وإن الـ API منشور بصلاحية Public.'}
+    finally{clearTimeout(tm);go.disabled=false}};
+  ins.onclick=()=>{if(!cur||!book)return;const pg=book.pages[curPg],d=pg&&DOM.get(pg.id);if(!d)return;dlg.hidden=true;
+    const pr=d.el.getBoundingClientRect(),vr=view.getBoundingClientRect();texInsert(d,[.06,Math.max(.03,(vr.top+40-pr.top)/pr.width)],'$$'+cur+'$$')};
+  cp.onclick=async()=>{try{await navigator.clipboard.writeText(cur);gs('اننسخ كود لاتيكس ✓')}catch(e){prompt('انسخ الكود:',cur)}};
+  cl.onclick=()=>dlg.hidden=true;
+  dlg.append(mk('b','','🐺 حساب Wolfram'),lab('رابط API الحساب:'),ui,lab('العملية:'),op,lab('التعبير:'),fi,lv,vi,lab_,rab,lN,ni,lD,di,go,out,box,ins,cp,cl)}
 $('moreB').onclick=()=>pick('الدفتر',[
   'هاي الصفحة',
   [(book.pages[curPg]&&book.pages[curPg].bm?'⭐ شيل علامة الصفحة':'☆ علّم الصفحة'),mcl('bmB')],
@@ -3422,6 +3482,7 @@ $('moreB').onclick=()=>pick('الدفتر',[
   ['🧮 حاسبة ورسم',mcl('calcB')],
   ['🐺 اختبار Wolfram Cloud',wfTest],
   ['🐺 رسم Wolfram',wfPlot],
+  ['🐺 حساب Wolfram (تكامل، مشتقة، حل…)',wfCalc],
   ['📖 دليل التطبيق (شرح كل الأدوات)',()=>{if(window.__guide)window.__guide.open()}],
   ['❓ وضع المساعدة (المس أداة لتعرف شو بتعمل)',()=>{if(window.__guide)window.__guide.help()}],
   ['⚙ إعدادات اللمس ›',()=>pick('إعدادات اللمس',[
