@@ -3369,7 +3369,7 @@ function wfPlot(){
     out=mk('div','st'),img=document.createElement('img'),go=mk('button','primary','ارسم'),ins=mk('button','','📌 أدرج الرسمة بالصفحة'),cl=mk('button','danger','إغلاق'),
     ra=mk('div'),rbx=mk('div'),la=lab(''),lb=lab('');
   ui.placeholder='https://www.wolframcloud.com/obj/.../daftari-plot';ui.style.cssText=LTR;ui.value=base;
-  TY.forEach((t,i)=>{const o=document.createElement('option');o.value=i;o.textContent=t.l;ty.append(o)});ty.style.cssText='font-size:16px;direction:rtl';
+  TY.forEach((t,i)=>{const o=document.createElement('option');o.value=i;o.textContent=t.l;ty.append(o)});ty.style.cssText='font-size:16px;direction:rtl;text-align:right;font-family:system-ui,-apple-system,"SF Arabic","Noto Sans Arabic",Tahoma,sans-serif;padding:10px 8px;min-height:46px;line-height:1.5';
   fi.style.cssText=LTR;[a0,a1,b0,b1].forEach(x=>{x.style.cssText=LTR+';flex:1;min-width:0';x.setAttribute('inputmode','decimal')});
   ra.style.cssText=rbx.style.cssText='display:flex;gap:8px;direction:ltr';ra.append(a0,a1);rbx.append(b0,b1);
   out.style.cssText='white-space:pre-wrap;direction:rtl;text-align:right;margin:6px 4px;line-height:1.7';
@@ -3411,8 +3411,8 @@ function wfCalc(){
     out=mk('div','st'),box=mk('div'),go=mk('button','primary','احسب'),ins=mk('button','','📌 أدرج النتيجة بالصفحة'),cp=mk('button','','نسخ كود لاتيكس'),cl=mk('button','danger','إغلاق'),
     rv=mk('div'),rab=mk('div'),rn=mk('div'),rd=mk('div'),lv=lab('المتغير:'),lab_=lab(''),lN=lab('رتبة المشتقة:'),lD=lab('الاتجاه:');
   ui.placeholder='https://www.wolframcloud.com/obj/.../daftari-calc';ui.style.cssText=LTR;ui.value=base;
-  OP.forEach((t,i)=>{const o=document.createElement('option');o.value=i;o.textContent=t.l;op.append(o)});op.style.cssText='font-size:16px;direction:rtl';
-  [['من الجهتين',0],['من اليمين  (+)',1],['من اليسار  (−)',-1]].forEach(([l,v])=>{const o=document.createElement('option');o.value=v;o.textContent=l;di.append(o)});di.style.cssText='font-size:16px;direction:rtl';
+  OP.forEach((t,i)=>{const o=document.createElement('option');o.value=i;o.textContent=t.l;op.append(o)});op.style.cssText='font-size:16px;direction:rtl;text-align:right;font-family:system-ui,-apple-system,"SF Arabic","Noto Sans Arabic",Tahoma,sans-serif;padding:10px 8px;min-height:46px;line-height:1.5';
+  [['من الجهتين',0],['من اليمين  (+)',1],['من اليسار  (−)',-1]].forEach(([l,v])=>{const o=document.createElement('option');o.value=v;o.textContent=l;di.append(o)});di.style.cssText='font-size:16px;direction:rtl;text-align:right;font-family:system-ui,-apple-system,"SF Arabic","Noto Sans Arabic",Tahoma,sans-serif;padding:10px 8px;min-height:46px;line-height:1.5';
   fi.style.cssText=vi.style.cssText=ai.style.cssText=bi.style.cssText=ni.style.cssText=LTR;ai.style.flex=bi.style.flex='1';ai.style.minWidth=bi.style.minWidth='0';
   rab.style.cssText='display:flex;gap:8px;direction:ltr';rab.append(ai,bi);vi.value='x';ni.value='1';ni.setAttribute('inputmode','numeric');
   out.style.cssText='white-space:pre-wrap;direction:rtl;text-align:right;margin:6px 4px;line-height:1.7';box.style.cssText='margin:4px 0;overflow-x:auto;direction:ltr;text-align:center';
