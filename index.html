@@ -3435,7 +3435,7 @@ function wfCalc(){
     if(t.lm&&!A){out.textContent='اكتب النقطة اللي بتقترب منها';return}
     try{localStorage.setItem('wf_calc_url',u)}catch(e){}
     const N=t.n?(parseInt(nz(ni.value),10)||1):t.lm?parseInt(di.value,10):0;
-    const q=new URLSearchParams({op:t.k,f:wfConv(fi.value),v:V,a:t.ab||t.lm?A:'',b:B,n:String(Math.max(-1,Math.min(9,N)))});
+    const q=new URLSearchParams({op:t.k,f:wfConv(fi.value),v:V,a:t.ab||t.lm?A:'0',b:B||'0',n:String(Math.max(-1,Math.min(9,N)))});
     out.textContent='جاري الحساب…';go.disabled=true;ins.style.display=cp.style.display='none';box.textContent='';
     const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),40000);
     try{
