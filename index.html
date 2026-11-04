@@ -3511,12 +3511,13 @@ function wfCalc(){
       if(!tx.trim()){out.textContent='✗ الرد وصل (حالة '+st+') بس فاضي';return}
       const j=JSON.parse(tx);let tex;
       const W=s=>{try{return wfTex(s)}catch(e){return '\\text{'+String(s).replace(/[^A-Za-z0-9 ,.+*^-]/g,'')+'}'}};
+      const NN=/^-?[0-9]*\.?[0-9]+(\*\^-?[0-9]+)?$/.test(String(j.n||''))?String(+parseFloat(String(j.n).replace('*^','e')).toPrecision(8)):'';
       const F=(Array.isArray(j.f)?j.f:[j.f]).map(W).join(',\\ '),A=W(j.a),B2=W(j.b),R=W(j.r);
       if(j.err){out.textContent='✗ '+({'invalid-input':'الـ API رفض المدخلات','no-result':'ما لقى جواب بصيغة مغلقة (أو أخذ وقت طويل)','internal':'عطل داخلي بالـ API'}[j.err]||j.err);if(j.dbg){const d=document.createElement('div');d.dir='ltr';d.style.cssText='text-align:left;word-break:break-all;margin-top:6px;font:13px/1.5 ui-monospace,Menlo,monospace';d.textContent=String(j.dbg).slice(0,500);out.append(d)}return}
       if(t.k==='int')tex='\\int '+F+'\\,d'+V+' = '+R+' + C';
-      else if(t.k==='dint')tex='\\int_{'+A+'}^{'+B2+'} '+F+'\\,d'+V+' = '+R+(j.n?' \\approx '+j.n:'');
+      else if(t.k==='dint')tex='\\int_{'+A+'}^{'+B2+'} '+F+'\\,d'+V+' = '+R+(NN?' \\approx '+NN:'');
       else if(t.k==='diff')tex=(N>1?'\\frac{d^{'+N+'}}{d'+V+'^{'+N+'}}':'\\frac{d}{d'+V+'}')+'\\left('+F+'\\right) = '+R;
-      else if(t.k==='limit')tex='\\lim_{'+V+' \\to '+A+(N===1?'^{+}':N===-1?'^{-}':'')+'} '+F+' = '+R+(j.n?' \\approx '+j.n:'');
+      else if(t.k==='limit')tex='\\lim_{'+V+' \\to '+A+(N===1?'^{+}':N===-1?'^{-}':'')+'} '+F+' = '+R+(NN?' \\approx '+NN:'');
       else tex=F+' \\;\\Longrightarrow\\; '+R;
       cur=tex;out.textContent='✓';await show(tex);ins.style.display=cp.style.display=''}
     catch(e){out.textContent=e.name==='SyntaxError'?('✗ الرد وصل (حالة '+st+') بس مش بصيغة JSON:\n'+tx.slice(0,300)):((e.name==='AbortError'?'✗ انتهت المهلة':'✗ فشل النداء')+'\nتأكد من الرابط ومن النت، وإن الـ API منشور بصلاحية Public.')}
