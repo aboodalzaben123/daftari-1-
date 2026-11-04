@@ -3438,17 +3438,19 @@ function wfCalc(){
     const q=new URLSearchParams({op:t.k,f:wfConv(fi.value),v:V,a:t.ab||t.lm?A:'0',b:B||'0',n:String(Math.max(-1,Math.min(9,N)))});
     out.textContent='جاري الحساب…';go.disabled=true;ins.style.display=cp.style.display='none';box.textContent='';
     const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),40000);
-    try{
-      const r=await fetch(u+'?'+q,{signal:ac.signal}),tx=await r.text();
+    let tx='',st=0;try{
+      const r=await fetch(u+'?'+q,{signal:ac.signal});st=r.status;tx=await r.text();
       if(!r.ok){out.textContent='✗ '+tx.slice(0,200);return}
+      if(!tx.trim()){out.textContent='✗ الرد وصل (حالة '+st+') بس فاضي';return}
       const j=JSON.parse(tx);let tex;
+      if(j.err){out.textContent='✗ '+({'invalid-input':'الـ API رفض المدخلات','no-result':'ما لقى جواب بصيغة مغلقة (أو أخذ وقت طويل)','internal':'عطل داخلي بالـ API'}[j.err]||j.err)+(j.dbg?'\n'+String(j.dbg).slice(0,300):'');return}
       if(t.k==='int')tex='\\int '+j.f+'\\,d'+V+' = '+j.r+' + C';
       else if(t.k==='dint')tex='\\int_{'+j.a+'}^{'+j.b+'} '+j.f+'\\,d'+V+' = '+j.r+(j.n?' \\approx '+j.n:'');
       else if(t.k==='diff')tex=(N>1?'\\frac{d^{'+N+'}}{d'+V+'^{'+N+'}}':'\\frac{d}{d'+V+'}')+'\\left('+j.f+'\\right) = '+j.r;
       else if(t.k==='limit')tex='\\lim_{'+V+' \\to '+j.a+(N===1?'^{+}':N===-1?'^{-}':'')+'} '+j.f+' = '+j.r+(j.n?' \\approx '+j.n:'');
       else tex=j.f+' \\;\\Longrightarrow\\; '+j.r;
       cur=tex;out.textContent='✓';await show(tex);ins.style.display=cp.style.display=''}
-    catch(e){out.textContent=(e.name==='AbortError'?'✗ انتهت المهلة':'✗ فشل النداء')+'\nتأكد من الرابط ومن النت، وإن الـ API منشور بصلاحية Public.'}
+    catch(e){out.textContent=e.name==='SyntaxError'?('✗ الرد وصل (حالة '+st+') بس مش بصيغة JSON:\n'+tx.slice(0,300)):((e.name==='AbortError'?'✗ انتهت المهلة':'✗ فشل النداء')+'\nتأكد من الرابط ومن النت، وإن الـ API منشور بصلاحية Public.')}
     finally{clearTimeout(tm);go.disabled=false}};
   ins.onclick=()=>{if(!cur||!book)return;const pg=book.pages[curPg],d=pg&&DOM.get(pg.id);if(!d)return;dlg.hidden=true;
     const pr=d.el.getBoundingClientRect(),vr=view.getBoundingClientRect();texInsert(d,[.06,Math.max(.03,(vr.top+40-pr.top)/pr.width)],'$$'+cur+'$$')};
