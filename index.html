@@ -3395,6 +3395,73 @@ function wfPlot(){
   ins.onclick=()=>{if(!cur)return;dlg.hidden=true;addImg(new File([cur],'wolfram.png',{type:'image/png'}))};
   cl.onclick=()=>dlg.hidden=true;
   dlg.append(mk('b','','🐺 رسم Wolfram'),lab('رابط API الرسم:'),ui,lab('نوع الرسمة:'),ty,lab('التعبير:'),fi,la,ra,lb,rbx,go,out,img,ins,cl)}
+/* FullForm من Wolfram ← لاتيكس (لأن TeXForm ما بيشتغل جوا الـ API) */
+function wfTex(src){
+  src=String(src||'').replace(/\s+/g,'');if(!src)return'';
+  let i=0;
+  const parse=()=>{
+    let m=/^-?\d+(\.\d*)?(\*\^-?\d+)?/.exec(src.slice(i));
+    if(m){i+=m[0].length;return{n:m[0].replace('*^','e')}}
+    m=/^[A-Za-z$][A-Za-z0-9$`]*/.exec(src.slice(i));if(!m)throw new Error('parse');
+    i+=m[0].length;const name=m[0];
+    if(src[i]==='['){i++;const a=[];if(src[i]===']'){i++;return{h:name,a}}
+      for(;;){a.push(parse());if(src[i]===','){i++;continue}if(src[i]===']'){i++;break}throw new Error('parse')}
+      return{h:name,a}}
+    return{s:name}};
+  let ast=parse();if(i!==src.length)throw new Error('parse');
+  if(ast.h==='HoldForm'&&ast.a.length===1)ast=ast.a[0];
+  const FN={Sin:'\\sin',Cos:'\\cos',Tan:'\\tan',Cot:'\\cot',Sec:'\\sec',Csc:'\\csc',ArcSin:'\\arcsin',ArcCos:'\\arccos',ArcTan:'\\arctan',ArcCot:'\\operatorname{arccot}',Sinh:'\\sinh',Cosh:'\\cosh',Tanh:'\\tanh',Log:'\\ln',Exp:'\\exp'};
+  const SYM={Pi:'\\pi',E:'e',I:'i',Infinity:'\\infty',Integers:'\\mathbb{Z}',Reals:'\\mathbb{R}',True:'\\text{true}',False:'\\text{false}',Indeterminate:'\\text{undefined}'};
+  const REL={Equal:'=',Unequal:'\\ne',Less:'<',Greater:'>',LessEqual:'\\le',GreaterEqual:'\\ge'};
+  const isNum=n=>n.n!==undefined,val=n=>parseFloat(n.n);
+  const negExp=e=>(isNum(e)&&val(e)<0)||(e.h==='Rational'&&val(e.a[0])<0);
+  const flip=e=>isNum(e)?{n:String(-val(e))}:{h:'Rational',a:[{n:String(-val(e.a[0]))},e.a[1]]};
+  const wrap=s=>'\\left('+s+'\\right)';
+  const T=n=>{
+    if(isNum(n))return n.n;
+    if(n.s!==undefined)return SYM[n.s]||(n.s.length===1?n.s:'\\text{'+n.s+'}');
+    const a=n.a,h=n.h;
+    if(FN[h]&&a.length===1)return FN[h]+wrap(T(a[0]));
+    if(h==='Log'&&a.length===2)return '\\log_{'+T(a[0])+'}'+wrap(T(a[1]));
+    switch(h){
+      case'Plus':{let o=T(a[0]);for(let k=1;k<a.length;k++){const t=T(a[k]);o+=t[0]==='-'?' - '+t.slice(1):' + '+t}return o}
+      case'Times':{let neg=false;const nu=[],de=[];
+        a.forEach(f=>{
+          if(isNum(f)){if(f.n==='-1'){neg=!neg;return}if(val(f)<0){neg=!neg;nu.push({n:f.n.slice(1)})}else nu.push(f);return}
+          if(f.h==='Rational'){let p=val(f.a[0]);const q=f.a[1];if(p<0){neg=!neg;p=-p}if(p!==1)nu.push({n:String(p)});de.push(q);return}
+          if(f.h==='Power'&&negExp(f.a[1])){const e=flip(f.a[1]);de.push(isNum(e)&&val(e)===1?f.a[0]:{h:'Power',a:[f.a[0],e]});return}
+          nu.push(f)});
+        const prod=(l,ng)=>l.map((f,k)=>{let s=f.h==='Plus'&&((l.length>1||ng))?wrap(T(f)):T(f);if(k>0&&/^[0-9.]/.test(s)&&/[0-9.]$/.test(T(l[k-1])))s='\\cdot '+s;return s}).join(' ');
+        const ns=nu.length?prod(nu,neg&&!de.length):'1';
+        return(neg?'-':'')+(de.length?'\\frac{'+ns+'}{'+prod(de)+'}':ns)}
+      case'Rational':{let p=val(a[0]);const q=T(a[1]);return(p<0?'-':'')+'\\frac{'+Math.abs(p)+'}{'+q+'}'}
+      case'Power':{const b=a[0],e=a[1];
+        if(negExp(e))return '\\frac{1}{'+T({h:'Power',a:[b,flip(e)]})+'}';
+        if(isNum(e)&&val(e)===1)return T(b);
+        if(e.h==='Rational'&&val(e.a[0])===1)return val(e.a[1])===2?'\\sqrt{'+T(b)+'}':'\\sqrt['+T(e.a[1])+']{'+T(b)+'}';
+        if(b.s==='E')return 'e^{'+T(e)+'}';
+        if(b.h&&FN[b.h]&&b.a.length===1&&isNum(e))return FN[b.h]+'^{'+T(e)+'}'+wrap(T(b.a[0]));
+        const bs=(b.h&&['Plus','Times','Rational','Power'].includes(b.h))||(isNum(b)&&val(b)<0)||FN[b.h]?wrap(T(b)):T(b);
+        return bs+'^{'+T(e)+'}'}
+      case'Sqrt':return '\\sqrt{'+T(a[0])+'}';
+      case'Abs':return '\\left|'+T(a[0])+'\\right|';
+      case'Floor':return '\\lfloor '+T(a[0])+'\\rfloor';
+      case'Ceiling':return '\\lceil '+T(a[0])+'\\rceil';
+      case'Complex':{const re=val(a[0]),im=val(a[1]);const is=im===1?'i':im===-1?'-i':T(a[1])+'i';return re===0?is:T(a[0])+(is[0]==='-'?' - '+is.slice(1):' + '+is)}
+      case'DirectedInfinity':return !a.length?'\\tilde\\infty':val(a[0])<0?'-\\infty':'\\infty';
+      case'C':return 'c_{'+T(a[0])+'}';
+      case'Element':return T(a[0])+' \\in '+T(a[1]);
+      case'List':return '\\left\\{'+a.map(T).join(', ')+'\\right\\}';
+      case'Or':return a.map(T).join(' \\quad\\lor\\quad ');
+      case'And':return a.every(x=>x.h==='Equal')?a.map(T).join(',\\ '):a.map(T).join(' \\quad\\land\\quad ');
+      case'Not':return '\\lnot '+wrap(T(a[0]));
+      case'Inequality':{let o=T(a[0]);for(let k=1;k+1<a.length;k+=2)o+=' '+(REL[a[k].s]||'?')+' '+T(a[k+1]);return o}
+      case'Piecewise':{const rows=a[0].a.map(r=>T(r.a[0])+' & '+T(r.a[1]));rows.push((a[1]?T(a[1]):'0')+' & \\text{otherwise}');return '\\begin{cases}'+rows.join(' \\\\ ')+'\\end{cases}'}
+    }
+    if(REL[h])return a.map(T).join(' '+REL[h]+' ');
+    return '\\text{'+h+'}'+wrap(a.map(T).join(', '))};
+  return T(ast)}
+
 /* ===== حساب Wolfram Cloud (تجريبي): تكامل، مشتقة، نهاية، حل معادلات. النتيجة بتنعرض بلاتيكس وبتقدر تدرجها بالصفحة ===== */
 function wfCalc(){
   const OP=[
@@ -3443,12 +3510,14 @@ function wfCalc(){
       if(!r.ok){out.textContent='✗ '+tx.slice(0,200);return}
       if(!tx.trim()){out.textContent='✗ الرد وصل (حالة '+st+') بس فاضي';return}
       const j=JSON.parse(tx);let tex;
+      const W=s=>{try{return wfTex(s)}catch(e){return '\\text{'+String(s).replace(/[^A-Za-z0-9 ,.+*^-]/g,'')+'}'}};
+      const F=(Array.isArray(j.f)?j.f:[j.f]).map(W).join(',\\ '),A=W(j.a),B2=W(j.b),R=W(j.r);
       if(j.err){out.textContent='✗ '+({'invalid-input':'الـ API رفض المدخلات','no-result':'ما لقى جواب بصيغة مغلقة (أو أخذ وقت طويل)','internal':'عطل داخلي بالـ API'}[j.err]||j.err)+(j.dbg?'\n'+String(j.dbg).slice(0,300):'');return}
-      if(t.k==='int')tex='\\int '+j.f+'\\,d'+V+' = '+j.r+' + C';
-      else if(t.k==='dint')tex='\\int_{'+j.a+'}^{'+j.b+'} '+j.f+'\\,d'+V+' = '+j.r+(j.n?' \\approx '+j.n:'');
-      else if(t.k==='diff')tex=(N>1?'\\frac{d^{'+N+'}}{d'+V+'^{'+N+'}}':'\\frac{d}{d'+V+'}')+'\\left('+j.f+'\\right) = '+j.r;
-      else if(t.k==='limit')tex='\\lim_{'+V+' \\to '+j.a+(N===1?'^{+}':N===-1?'^{-}':'')+'} '+j.f+' = '+j.r+(j.n?' \\approx '+j.n:'');
-      else tex=j.f+' \\;\\Longrightarrow\\; '+j.r;
+      if(t.k==='int')tex='\\int '+F+'\\,d'+V+' = '+R+' + C';
+      else if(t.k==='dint')tex='\\int_{'+A+'}^{'+B2+'} '+F+'\\,d'+V+' = '+R+(j.n?' \\approx '+j.n:'');
+      else if(t.k==='diff')tex=(N>1?'\\frac{d^{'+N+'}}{d'+V+'^{'+N+'}}':'\\frac{d}{d'+V+'}')+'\\left('+F+'\\right) = '+R;
+      else if(t.k==='limit')tex='\\lim_{'+V+' \\to '+A+(N===1?'^{+}':N===-1?'^{-}':'')+'} '+F+' = '+R+(j.n?' \\approx '+j.n:'');
+      else tex=F+' \\;\\Longrightarrow\\; '+R;
       cur=tex;out.textContent='✓';await show(tex);ins.style.display=cp.style.display=''}
     catch(e){out.textContent=e.name==='SyntaxError'?('✗ الرد وصل (حالة '+st+') بس مش بصيغة JSON:\n'+tx.slice(0,300)):((e.name==='AbortError'?'✗ انتهت المهلة':'✗ فشل النداء')+'\nتأكد من الرابط ومن النت، وإن الـ API منشور بصلاحية Public.')}
     finally{clearTimeout(tm);go.disabled=false}};
