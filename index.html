@@ -405,7 +405,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 #sw .cpw i{position:absolute;left:5px;top:5px;right:5px;bottom:5px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25);pointer-events:none}
 #sw .cpw input[type=color]{position:absolute;left:0;top:0;width:100%;height:100%;margin:0;padding:0;border:0;opacity:0;cursor:pointer}
 </style>
-</head>
+<style id="noerrbtn">#elb,#elp{display:none!important}</style></head>
 <body>
 <div id="lib" hidden>
   <div id="tabsL" class="tabs" hidden></div>
@@ -2247,12 +2247,12 @@ $('undoB').onclick=doUndo;$('redoB').onclick=doRedo;
 /* #view صار LTR (الصفحات والأدوات جواته بتضل RTL): scrollLeft عادي من 0 لآخر العرض، فحافة الصفحة اليسار واليمين دايماً بتنوصل بالتساوي */
 const sxN=()=>view.scrollLeft,setSxN=v=>{view.scrollLeft=v};
 /* التكبير بيثبّت النقطة اللي تحت الإصبع/المؤشر بالنسبة لعرض الصفحة نفسها (مش بإحداثيات السكرول): الصفحة متوسّطة بهوامش، فالمعادلة القديمة كانت ترمي الدفتر لأقصى اليمين */
-function zAnc(cx,cy){const vr=view.getBoundingClientRect(),X=vr.left+cx,Y=vr.top+cy;let best=null,bd=1e18;for(const el of pagesEl.children){const q=el.getBoundingClientRect();if(!q.width)continue;const dx=X<q.left?q.left-X:X>q.right?X-q.right:0,dy=Y<q.top?q.top-Y:Y>q.bottom?Y-q.bottom:0,d=dx*dx+dy*dy;if(d<bd){bd=d;best=el;if(!d)break}}if(!best)return null;const q=best.getBoundingClientRect(),u=Math.max(0,Math.min(1,(X-q.left)/q.width)),v=Math.max(0,Math.min(1,(Y-q.top)/Math.max(1,q.height)));return{el:best,u,v,ox:X-q.left-u*q.width,oy:Y-q.top-v*q.height}}
+function zAnc(cx,cy){const vr=view.getBoundingClientRect(),X=vr.left+cx,Y=vr.top+cy;let best=null,bd=1e18;for(const el of pagesEl.children){const q=el.getBoundingClientRect();if(!q.width)continue;const dx=X<q.left?q.left-X:X>q.right?X-q.right:0,dy=Y<q.top?q.top-Y:Y>q.bottom?Y-q.bottom:0,d=dx*dx+dy*dy;if(d<bd){bd=d;best=el;if(!d)break}}if(!best)return null;const q=best.getBoundingClientRect();return{el:best,u:(X-q.left)/q.width}}
 const ZMIN=.5,ZMAX=3;let zbT=0;
 function zBadgeHide(){clearTimeout(zbT);const b=$('zbadge');if(b)b.classList.remove('on')}
 function zBadge(t){const b=$('zbadge');if(!b)return;if($('ed').hidden){zBadgeHide();return}const vr=view.getBoundingClientRect();b.style.top=(vr.top+10)+'px';b.style.left=(vr.left+12)+'px';b.textContent=t;b.classList.add('on');clearTimeout(zbT);zbT=setTimeout(()=>b.classList.remove('on'),1400)}
 function zUi(){const t=Math.round(zoom*100)+'%';$('zr').textContent=t;zBadge(t)}
-function setZoom(nz,cx,cy,anc){nz=Math.max(ZMIN,Math.min(ZMAX,nz));if(cx===undefined){cx=view.clientWidth/2;cy=view.clientHeight/2}const r=nz/zoom,sx=sxN()+cx,sy=view.scrollTop+cy,a=anc||zAnc(cx,cy);zoom=nz;DOM.forEach(fit);if(a&&a.el.isConnected&&a.v!==undefined){const vr=view.getBoundingClientRect(),q=a.el.getBoundingClientRect();view.scrollLeft+=q.left+a.u*q.width+a.ox-(vr.left+cx);view.scrollTop+=q.top+a.v*q.height+a.oy-(vr.top+cy)}else{setSxN(sx*r-cx);view.scrollTop=sy*r-cy};if(book)book.zm=zoom;zUi()}
+function setZoom(nz,cx,cy,anc){nz=Math.max(ZMIN,Math.min(ZMAX,nz));if(cx===undefined){cx=view.clientWidth/2;cy=view.clientHeight/2}const r=nz/zoom,sx=sxN()+cx,sy=view.scrollTop+cy,a=anc||zAnc(cx,cy);zoom=nz;DOM.forEach(fit);if(a&&a.el.isConnected){const vr=view.getBoundingClientRect(),q=a.el.getBoundingClientRect();view.scrollLeft+=q.left+a.u*q.width-(vr.left+cx)}else setSxN(sx*r-cx);view.scrollTop=sy*r-cy;if(book)book.zm=zoom;zUi()}
 $('zi').onclick=()=>setZoom(zoom*1.25);$('zo').onclick=()=>setZoom(zoom/1.25);$('zr').onclick=()=>setZoom(1);
 $('title').oninput=e=>{book.title=e.target.value;delete book.auto;save()};
 $('po').onchange=e=>{po=e.target.checked;saveSet()};
@@ -3318,6 +3318,215 @@ const mcl=id=>()=>{const b=$(id);if(b)b.click()};
 function splDlg(){let sc='page';dlg.textContent='';dlg.hidden=false;dlg.append(mk('b','','✂ تنصيف الصفحة'),segB([['page','هالصفحة بس'],['all','كل صفحات الدفتر']],()=>sc,v=>{sc=v}));
   [['┃ عمودي (نصفين يمين ويسار)','v'],['━ أفقي (نصفين فوق وتحت)','h'],['╋ الاثنين (4 أجزاء)','vh'],['✕ شيل التنصيف',null]].forEach(([l,v])=>{const b=mk('button','',l);b.onclick=()=>{dlg.hidden=true;setSplit(v,sc==='all'?1:0)};dlg.append(b)});
   const x=mk('button','danger','إغلاق');x.onclick=()=>dlg.hidden=true;dlg.append(x)}
+/* ===== اختبار Wolfram Cloud (تجريبي): بيجرّب إذا المتصفح بيسمح بنداء API منشور على Wolfram Cloud (CORS) ===== */
+function wfTest(){
+  let u='';try{u=localStorage.getItem('wf_url')||''}catch(e){}
+  dlg.textContent='';dlg.hidden=false;
+  const ui=mk('input','cin'),xi=mk('input','cin'),out=mk('div','st'),go=mk('button','primary','اختبار'),cl=mk('button','danger','إغلاق');
+  ui.placeholder='https://www.wolframcloud.com/obj/.../daftari-test';ui.style.cssText='font-size:16px;direction:ltr;text-align:left';ui.value=u;
+  xi.value='hello';xi.style.cssText='font-size:16px;direction:ltr;text-align:left';
+  out.style.cssText='white-space:pre-wrap;direction:rtl;text-align:right;margin:6px 4px;min-height:44px;line-height:1.7';
+  go.onclick=async()=>{
+    const url=ui.value.trim();if(!/^https:\/\//.test(url)){out.textContent='الصق رابط الـ API كامل (يبدأ بـ https://)';return}
+    try{localStorage.setItem('wf_url',url)}catch(e){}
+    out.textContent='جاري الاتصال…';go.disabled=true;
+    const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),20000),t0=Date.now();
+    try{
+      const r=await fetch(url+(url.includes('?')?'&':'?')+'x='+encodeURIComponent(xi.value),{signal:ac.signal}),tx=await r.text();
+      out.textContent=(r.ok?'✓ شغّال: المتصفح سمح بالنداء (CORS تمام)':'⚠ الرد وصل بس بحالة '+r.status)+'\nالزمن: '+(Date.now()-t0)+' ملي ثانية\nالرد: '+tx.slice(0,400)}
+    catch(e){
+      out.textContent=(e.name==='AbortError'?'✗ انتهت المهلة (20 ثانية)':'✗ فشل النداء')+'\nأغلب الأسباب: المتصفح حجب الرد (CORS)، أو ما في نت، أو الرابط غلط.\nجرّب تفتح الرابط مباشرة بتبويب جديد: إذا اشتغل هناك وفشل هون، يعني CORS.'}
+    finally{clearTimeout(tm);go.disabled=false}};
+  cl.onclick=()=>dlg.hidden=true;
+  dlg.append(mk('b','','🐺 اختبار Wolfram Cloud'),mk('div','st','رابط الـ API المنشور:'),ui,mk('div','st','نص الاختبار:'),xi,go,out,cl)}
+/* ===== رسم Wolfram Cloud (تجريبي): بيبعت الاقتران لـ API على Wolfram Cloud وبيرجع صورة الرسمة، وبتقدر تدرجها بالصفحة ===== */
+function wfConv(s){
+  const AD='٠١٢٣٤٥٦٧٨٩';
+  s=String(s).replace(/[٠-٩]/g,c=>AD.indexOf(c)).replace(/٫/g,'.').replace(/[×·]/g,'*').replace(/÷/g,'/').replace(/[−–]/g,'-').replace(/π/g,'Pi').replace(/∞/g,'Infinity').replace(/²/g,'^2').replace(/³/g,'^3').replace(/،/g,',').replace(/؛/g,';');
+  const FN={sin:'Sin',cos:'Cos',tan:'Tan',cot:'Cot',sec:'Sec',csc:'Csc',asin:'ArcSin',acos:'ArcCos',atan:'ArcTan',arcsin:'ArcSin',arccos:'ArcCos',arctan:'ArcTan',sinh:'Sinh',cosh:'Cosh',tanh:'Tanh',sqrt:'Sqrt',exp:'Exp',ln:'Log',log:'Log10',log2:'Log2',abs:'Abs',floor:'Floor',ceil:'Ceiling',round:'Round',sign:'Sign',max:'Max',min:'Min',mod:'Mod',piecewise:'Piecewise',gamma:'Gamma',erf:'Erf',sinc:'Sinc'};
+  let out='',st=[],i=0;
+  while(i<s.length){
+    const m=/^[A-Za-z]+\d*/.exec(s.slice(i));
+    if(m){const w=m[0],lw=w.toLowerCase();let j=i+w.length;
+      if(FN[lw]&&/^\s*\(/.test(s.slice(j))){out+=FN[lw]+'[';st.push(1);i=s.indexOf('(',j)+1;continue}
+      out+=lw==='pi'?'Pi':(lw==='inf'||lw==='infinity')?'Infinity':w==='e'?'E':w;i=j;continue}
+    const c=s[i];
+    if(c==='('){st.push(0);out+='('}else if(c===')'){out+=st.pop()?']':')'}else out+=c;
+    i++}
+  return out}
+function wfPlot(){
+  const TY=[
+    {k:'plot',l:'اقتران y = f(x)',ph:'sin(x); x^2/4   (افصل بين اقترانين بـ ؛)',a:['-10','10'],b:['',''],al:'x من / إلى',bl:'y من / إلى (فاضي = تلقائي)'},
+    {k:'implicit',l:'معادلة أو متباينة بـ x و y',ph:'x^2+y^2=25     أو     y>x^2',a:['-10','10'],b:['-10','10'],al:'x من / إلى',bl:'y من / إلى'},
+    {k:'param',l:'بارامتري (x(t) , y(t))',ph:'cos(t), sin(2t)',a:['0','6.2832'],b:null,al:'t من / إلى'},
+    {k:'polar',l:'قطبي r(t)',ph:'1+cos(t)',a:['0','6.2832'],b:null,al:'t من / إلى'},
+    {k:'plot3d',l:'ثلاثي الأبعاد z = f(x,y)',ph:'sin(x)*cos(y)',a:['-5','5'],b:['-5','5'],al:'x من / إلى',bl:'y من / إلى'}];
+  let base='',cur=null;
+  try{base=localStorage.getItem('wf_plot_url')||'';if(!base){const t=localStorage.getItem('wf_url')||'';if(t)base=t.split('?')[0].replace(/daftari-test$/,'daftari-plot')}}catch(e){}
+  dlg.textContent='';dlg.hidden=false;
+  const LTR='font-size:16px;direction:ltr;text-align:left',lab=t=>{const d=mk('div','st',t);d.style.cssText='margin:6px 4px 0';return d};
+  const ui=mk('input','cin'),ty=mk('select','cin'),fi=mk('input','cin'),a0=mk('input','cin'),a1=mk('input','cin'),b0=mk('input','cin'),b1=mk('input','cin'),
+    out=mk('div','st'),img=document.createElement('img'),go=mk('button','primary','ارسم'),ins=mk('button','','📌 أدرج الرسمة بالصفحة'),cl=mk('button','danger','إغلاق'),
+    ra=mk('div'),rbx=mk('div'),la=lab(''),lb=lab('');
+  ui.placeholder='https://www.wolframcloud.com/obj/.../daftari-plot';ui.style.cssText=LTR;ui.value=base;
+  TY.forEach((t,i)=>{const o=document.createElement('option');o.value=i;o.textContent=t.l;ty.append(o)});ty.style.cssText='font-size:16px;direction:rtl;text-align:right;font-family:system-ui,-apple-system,"SF Arabic","Noto Sans Arabic",Tahoma,sans-serif;padding:10px 8px;min-height:46px;line-height:1.5';
+  fi.style.cssText=LTR;[a0,a1,b0,b1].forEach(x=>{x.style.cssText=LTR+';flex:1;min-width:0';x.setAttribute('inputmode','decimal')});
+  ra.style.cssText=rbx.style.cssText='display:flex;gap:8px;direction:ltr';ra.append(a0,a1);rbx.append(b0,b1);
+  out.style.cssText='white-space:pre-wrap;direction:rtl;text-align:right;margin:6px 4px;line-height:1.7';
+  img.style.cssText='display:none;max-width:100%;max-height:42vh;margin:6px auto;background:#fff;border-radius:8px;object-fit:contain';ins.style.display='none';
+  const fill=()=>{const t=TY[ty.value];fi.placeholder=t.ph;a0.value=t.a[0];a1.value=t.a[1];la.textContent=t.al;
+    if(t.b){b0.value=t.b[0];b1.value=t.b[1];lb.textContent=t.bl;lb.style.display=rbx.style.display='';rbx.style.display='flex'}else{b0.value=b1.value='';lb.style.display=rbx.style.display='none'}};
+  ty.onchange=fill;fill();
+  const nz=v=>String(v).trim().replace(/[٠-٩]/g,c=>'٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/٫/g,'.');
+  go.onclick=async()=>{
+    const t=TY[ty.value],u=ui.value.trim().split('?')[0];
+    if(!/^https:\/\//.test(u)){out.textContent='الصق رابط API الرسم (اللي آخره daftari-plot)';return}
+    if(!fi.value.trim()){out.textContent='اكتب الاقتران أولاً';return}
+    try{localStorage.setItem('wf_plot_url',u)}catch(e){}
+    const q=new URLSearchParams({type:t.k,f:wfConv(fi.value),a0:nz(a0.value),a1:nz(a1.value),b0:nz(b0.value)||'auto',b1:nz(b1.value)||'auto'});
+    out.textContent='جاري الرسم… (أول مرة ممكن ياخد كم ثانية)';go.disabled=true;ins.style.display='none';
+    const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),40000);
+    try{
+      const r=await fetch(u+'?'+q,{signal:ac.signal}),bl=await r.blob();
+      if(r.ok&&/^image\//.test(bl.type)){cur=bl;if(img._u)URL.revokeObjectURL(img._u);img._u=URL.createObjectURL(bl);img.src=img._u;img.style.display='block';ins.style.display='';out.textContent='✓ تم'}
+      else{img.style.display='none';out.textContent='✗ '+(await bl.text()).slice(0,200)+'\n(الحالة '+r.status+')'}}
+    catch(e){img.style.display='none';out.textContent=(e.name==='AbortError'?'✗ انتهت المهلة':'✗ فشل النداء')+'\nتأكد من الرابط ومن النت، وإن الـ API منشور بصلاحية Public.'}
+    finally{clearTimeout(tm);go.disabled=false}};
+  ins.onclick=()=>{if(!cur)return;dlg.hidden=true;addImg(new File([cur],'wolfram.png',{type:'image/png'}))};
+  cl.onclick=()=>dlg.hidden=true;
+  dlg.append(mk('b','','🐺 رسم Wolfram'),lab('رابط API الرسم:'),ui,lab('نوع الرسمة:'),ty,lab('التعبير:'),fi,la,ra,lb,rbx,go,out,img,ins,cl)}
+/* FullForm من Wolfram ← لاتيكس (لأن TeXForm ما بيشتغل جوا الـ API) */
+function wfTex(src){
+  src=String(src||'').replace(/\s+/g,'');if(!src)return'';
+  let i=0;
+  const parse=()=>{
+    let m=/^-?\d+(\.\d*)?(\*\^-?\d+)?/.exec(src.slice(i));
+    if(m){i+=m[0].length;return{n:m[0].replace('*^','e')}}
+    m=/^[A-Za-z$][A-Za-z0-9$`]*/.exec(src.slice(i));if(!m)throw new Error('parse');
+    i+=m[0].length;const name=m[0];
+    if(src[i]==='['){i++;const a=[];if(src[i]===']'){i++;return{h:name,a}}
+      for(;;){a.push(parse());if(src[i]===','){i++;continue}if(src[i]===']'){i++;break}throw new Error('parse')}
+      return{h:name,a}}
+    return{s:name}};
+  let ast=parse();if(i!==src.length)throw new Error('parse');
+  if(ast.h==='HoldForm'&&ast.a.length===1)ast=ast.a[0];
+  const FN={Sin:'\\sin',Cos:'\\cos',Tan:'\\tan',Cot:'\\cot',Sec:'\\sec',Csc:'\\csc',ArcSin:'\\arcsin',ArcCos:'\\arccos',ArcTan:'\\arctan',ArcCot:'\\operatorname{arccot}',Sinh:'\\sinh',Cosh:'\\cosh',Tanh:'\\tanh',Log:'\\ln',Exp:'\\exp'};
+  const SYM={Pi:'\\pi',E:'e',I:'i',Infinity:'\\infty',Integers:'\\mathbb{Z}',Reals:'\\mathbb{R}',True:'\\text{true}',False:'\\text{false}',Indeterminate:'\\text{undefined}'};
+  const REL={Equal:'=',Unequal:'\\ne',Less:'<',Greater:'>',LessEqual:'\\le',GreaterEqual:'\\ge'};
+  const isNum=n=>n.n!==undefined,val=n=>parseFloat(n.n);
+  const negExp=e=>(isNum(e)&&val(e)<0)||(e.h==='Rational'&&val(e.a[0])<0);
+  const flip=e=>isNum(e)?{n:String(-val(e))}:{h:'Rational',a:[{n:String(-val(e.a[0]))},e.a[1]]};
+  const wrap=s=>'\\left('+s+'\\right)';
+  const T=n=>{
+    if(isNum(n))return n.n;
+    if(n.s!==undefined)return SYM[n.s]||(n.s.length===1?n.s:'\\text{'+n.s+'}');
+    const a=n.a,h=n.h;
+    if(FN[h]&&a.length===1)return FN[h]+wrap(T(a[0]));
+    if(h==='Log'&&a.length===2)return '\\log_{'+T(a[0])+'}'+wrap(T(a[1]));
+    switch(h){
+      case'Plus':{let o=T(a[0]);for(let k=1;k<a.length;k++){const t=T(a[k]);o+=t[0]==='-'?' - '+t.slice(1):' + '+t}return o}
+      case'Times':{let neg=false;const nu=[],de=[];
+        a.forEach(f=>{
+          if(isNum(f)){if(f.n==='-1'){neg=!neg;return}if(val(f)<0){neg=!neg;nu.push({n:f.n.slice(1)})}else nu.push(f);return}
+          if(f.h==='Rational'){let p=val(f.a[0]);const q=f.a[1];if(p<0){neg=!neg;p=-p}if(p!==1)nu.push({n:String(p)});de.push(q);return}
+          if(f.h==='Power'&&negExp(f.a[1])){const e=flip(f.a[1]);de.push(isNum(e)&&val(e)===1?f.a[0]:{h:'Power',a:[f.a[0],e]});return}
+          nu.push(f)});
+        const prod=(l,ng)=>l.map((f,k)=>{let s=f.h==='Plus'&&((l.length>1||ng))?wrap(T(f)):T(f);if(k>0&&/^[0-9.]/.test(s)&&/[0-9.]$/.test(T(l[k-1])))s='\\cdot '+s;return s}).join(' ');
+        const ns=nu.length?prod(nu,neg&&!de.length):'1';
+        return(neg?'-':'')+(de.length?'\\frac{'+ns+'}{'+prod(de)+'}':ns)}
+      case'Rational':{let p=val(a[0]);const q=T(a[1]);return(p<0?'-':'')+'\\frac{'+Math.abs(p)+'}{'+q+'}'}
+      case'Power':{const b=a[0],e=a[1];
+        if(negExp(e))return '\\frac{1}{'+T({h:'Power',a:[b,flip(e)]})+'}';
+        if(isNum(e)&&val(e)===1)return T(b);
+        if(e.h==='Rational'&&val(e.a[0])===1)return val(e.a[1])===2?'\\sqrt{'+T(b)+'}':'\\sqrt['+T(e.a[1])+']{'+T(b)+'}';
+        if(b.s==='E')return 'e^{'+T(e)+'}';
+        if(b.h&&FN[b.h]&&b.a.length===1&&isNum(e))return FN[b.h]+'^{'+T(e)+'}'+wrap(T(b.a[0]));
+        const bs=(b.h&&['Plus','Times','Rational','Power'].includes(b.h))||(isNum(b)&&val(b)<0)||FN[b.h]?wrap(T(b)):T(b);
+        return bs+'^{'+T(e)+'}'}
+      case'Sqrt':return '\\sqrt{'+T(a[0])+'}';
+      case'Abs':return '\\left|'+T(a[0])+'\\right|';
+      case'Floor':return '\\lfloor '+T(a[0])+'\\rfloor';
+      case'Ceiling':return '\\lceil '+T(a[0])+'\\rceil';
+      case'Complex':{const re=val(a[0]),im=val(a[1]);const is=im===1?'i':im===-1?'-i':T(a[1])+'i';return re===0?is:T(a[0])+(is[0]==='-'?' - '+is.slice(1):' + '+is)}
+      case'DirectedInfinity':return !a.length?'\\tilde\\infty':val(a[0])<0?'-\\infty':'\\infty';
+      case'C':return 'c_{'+T(a[0])+'}';
+      case'Element':return T(a[0])+' \\in '+T(a[1]);
+      case'List':return '\\left\\{'+a.map(T).join(', ')+'\\right\\}';
+      case'Or':return a.map(T).join(' \\quad\\lor\\quad ');
+      case'And':return a.every(x=>x.h==='Equal')?a.map(T).join(',\\ '):a.map(T).join(' \\quad\\land\\quad ');
+      case'Not':return '\\lnot '+wrap(T(a[0]));
+      case'Inequality':{let o=T(a[0]);for(let k=1;k+1<a.length;k+=2)o+=' '+(REL[a[k].s]||'?')+' '+T(a[k+1]);return o}
+      case'Piecewise':{const rows=a[0].a.map(r=>T(r.a[0])+' & '+T(r.a[1]));rows.push((a[1]?T(a[1]):'0')+' & \\text{otherwise}');return '\\begin{cases}'+rows.join(' \\\\ ')+'\\end{cases}'}
+    }
+    if(REL[h])return a.map(T).join(' '+REL[h]+' ');
+    return '\\text{'+h+'}'+wrap(a.map(T).join(', '))};
+  return T(ast)}
+
+/* ===== حساب Wolfram Cloud (تجريبي): تكامل، مشتقة، نهاية، حل معادلات. النتيجة بتنعرض بلاتيكس وبتقدر تدرجها بالصفحة ===== */
+function wfCalc(){
+  const OP=[
+    {k:'int',l:'تكامل غير محدد  ∫',ph:'x^2*sin(x)'},
+    {k:'dint',l:'تكامل محدد  ∫ من a إلى b',ph:'x^2*sin(x)',ab:1},
+    {k:'diff',l:'مشتقة',ph:'x^2*sin(x)',n:1},
+    {k:'limit',l:'نهاية',ph:'sin(x)/x',lm:1},
+    {k:'solve',l:'حل معادلة / نظام / متباينة',ph:'x^2-5x+6=0     (نظام: x+y=3 ؛ x-y=1)',vs:1}];
+  let base='',cur='';
+  try{base=localStorage.getItem('wf_calc_url')||'';if(!base){const t=localStorage.getItem('wf_plot_url')||localStorage.getItem('wf_url')||'';if(t)base=t.split('?')[0].replace(/daftari-(plot|test)$/,'daftari-calc')}}catch(e){}
+  dlg.textContent='';dlg.hidden=false;
+  const LTR='font-size:16px;direction:ltr;text-align:left',lab=t=>{const d=mk('div','st',t);d.style.cssText='margin:6px 4px 0';return d};
+  const ui=mk('input','cin'),op=mk('select','cin'),fi=mk('input','cin'),vi=mk('input','cin'),ai=mk('input','cin'),bi=mk('input','cin'),ni=mk('input','cin'),di=mk('select','cin'),
+    out=mk('div','st'),box=mk('div'),go=mk('button','primary','احسب'),ins=mk('button','','📌 أدرج النتيجة بالصفحة'),cp=mk('button','','نسخ كود لاتيكس'),cl=mk('button','danger','إغلاق'),
+    rv=mk('div'),rab=mk('div'),rn=mk('div'),rd=mk('div'),lv=lab('المتغير:'),lab_=lab(''),lN=lab('رتبة المشتقة:'),lD=lab('الاتجاه:');
+  ui.placeholder='https://www.wolframcloud.com/obj/.../daftari-calc';ui.style.cssText=LTR;ui.value=base;
+  OP.forEach((t,i)=>{const o=document.createElement('option');o.value=i;o.textContent=t.l;op.append(o)});op.style.cssText='font-size:16px;direction:rtl;text-align:right;font-family:system-ui,-apple-system,"SF Arabic","Noto Sans Arabic",Tahoma,sans-serif;padding:10px 8px;min-height:46px;line-height:1.5';
+  [['من الجهتين',0],['من اليمين  (+)',1],['من اليسار  (−)',-1]].forEach(([l,v])=>{const o=document.createElement('option');o.value=v;o.textContent=l;di.append(o)});di.style.cssText='font-size:16px;direction:rtl;text-align:right;font-family:system-ui,-apple-system,"SF Arabic","Noto Sans Arabic",Tahoma,sans-serif;padding:10px 8px;min-height:46px;line-height:1.5';
+  fi.style.cssText=vi.style.cssText=ai.style.cssText=bi.style.cssText=ni.style.cssText=LTR;ai.style.flex=bi.style.flex='1';ai.style.minWidth=bi.style.minWidth='0';
+  rab.style.cssText='display:flex;gap:8px;direction:ltr';rab.append(ai,bi);vi.value='x';ni.value='1';ni.setAttribute('inputmode','numeric');
+  out.style.cssText='white-space:pre-wrap;direction:rtl;text-align:right;margin:6px 4px;line-height:1.7';box.style.cssText='margin:4px 0;overflow-x:auto;direction:ltr;text-align:center';
+  ins.style.display=cp.style.display='none';
+  const fill=()=>{const t=OP[op.value];fi.placeholder=t.ph;
+    lv.textContent=t.vs?'المتغيرات (مثلاً x أو x,y):':'المتغير:';
+    lab_.textContent=t.ab?'الحدود  a (من)  و  b (إلى)  — بتقدر تكتب inf أو pi':t.lm?'النهاية عند  (a):  بتقدر تكتب inf أو -inf':'';
+    ai.placeholder=t.ab?'a  مثلاً 0':'a';bi.placeholder='b  مثلاً pi';
+    lab_.style.display=rab.style.display=(t.ab||t.lm)?'':'none';rab.style.display=(t.ab||t.lm)?'flex':'none';bi.style.display=t.ab?'':'none';
+    lN.style.display=ni.style.display=t.n?'':'none';lD.style.display=di.style.display=t.lm?'':'none'};
+  op.onchange=fill;fill();
+  const nz=v=>wfConv(String(v).trim());
+  const show=async tex=>{box.textContent='';try{const M=await loadMJ({}),n=M.tex2svg(tex,{display:true});box.append(n)}catch(e){box.textContent=tex}};
+  go.onclick=async()=>{
+    const t=OP[op.value],u=ui.value.trim().split('?')[0];
+    if(!/^https:\/\//.test(u)){out.textContent='الصق رابط API الحساب (اللي آخره daftari-calc)';return}
+    if(!fi.value.trim()){out.textContent='اكتب التعبير أولاً';return}
+    const V=nz(vi.value).replace(/\s/g,'')||'x',A=nz(ai.value),B=t.ab?nz(bi.value):'';
+    if(t.ab&&(!A||!B)){out.textContent='اكتب حدّي التكامل a و b';return}
+    if(t.lm&&!A){out.textContent='اكتب النقطة اللي بتقترب منها';return}
+    try{localStorage.setItem('wf_calc_url',u)}catch(e){}
+    const N=t.n?(parseInt(nz(ni.value),10)||1):t.lm?parseInt(di.value,10):0;
+    const q=new URLSearchParams({op:t.k,f:wfConv(fi.value),v:V,a:t.ab||t.lm?A:'0',b:B||'0',n:String(Math.max(-1,Math.min(9,N)))});
+    out.textContent='جاري الحساب…';go.disabled=true;ins.style.display=cp.style.display='none';box.textContent='';
+    const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),40000);
+    let tx='',st=0;try{
+      const r=await fetch(u+'?'+q,{signal:ac.signal});st=r.status;tx=await r.text();
+      if(!r.ok){out.textContent='✗ '+tx.slice(0,200);return}
+      if(!tx.trim()){out.textContent='✗ الرد وصل (حالة '+st+') بس فاضي';return}
+      const j=JSON.parse(tx);let tex;
+      const W=s=>{try{return wfTex(s)}catch(e){return '\\text{'+String(s).replace(/[^A-Za-z0-9 ,.+*^-]/g,'')+'}'}};
+      const NN=/^-?[0-9]*\.?[0-9]+(\*\^-?[0-9]+)?$/.test(String(j.n||''))?String(+parseFloat(String(j.n).replace('*^','e')).toPrecision(8)):'';
+      const F=(Array.isArray(j.f)?j.f:[j.f]).map(W).join(',\\ '),A=W(j.a),B2=W(j.b),R=W(j.r);
+      if(j.err){out.textContent='✗ '+({'invalid-input':'الـ API رفض المدخلات','no-result':'ما لقى جواب بصيغة مغلقة (أو أخذ وقت طويل)','internal':'عطل داخلي بالـ API'}[j.err]||j.err);if(j.dbg){const d=document.createElement('div');d.dir='ltr';d.style.cssText='text-align:left;word-break:break-all;margin-top:6px;font:13px/1.5 ui-monospace,Menlo,monospace';d.textContent=String(j.dbg).slice(0,500);out.append(d)}return}
+      if(t.k==='int')tex='\\int '+F+'\\,d'+V+' = '+R+' + C';
+      else if(t.k==='dint')tex='\\int_{'+A+'}^{'+B2+'} '+F+'\\,d'+V+' = '+R+(NN?' \\approx '+NN:'');
+      else if(t.k==='diff')tex=(N>1?'\\frac{d^{'+N+'}}{d'+V+'^{'+N+'}}':'\\frac{d}{d'+V+'}')+'\\left('+F+'\\right) = '+R;
+      else if(t.k==='limit')tex='\\lim_{'+V+' \\to '+A+(N===1?'^{+}':N===-1?'^{-}':'')+'} '+F+' = '+R+(NN?' \\approx '+NN:'');
+      else tex=F+' \\;\\Longrightarrow\\; '+R;
+      cur=tex;out.textContent='✓';await show(tex);ins.style.display=cp.style.display=''}
+    catch(e){out.textContent=e.name==='SyntaxError'?('✗ الرد وصل (حالة '+st+') بس مش بصيغة JSON:\n'+tx.slice(0,300)):((e.name==='AbortError'?'✗ انتهت المهلة':'✗ فشل النداء')+'\nتأكد من الرابط ومن النت، وإن الـ API منشور بصلاحية Public.')}
+    finally{clearTimeout(tm);go.disabled=false}};
+  ins.onclick=()=>{if(!cur||!book)return;const pg=book.pages[curPg],d=pg&&DOM.get(pg.id);if(!d)return;dlg.hidden=true;
+    const pr=d.el.getBoundingClientRect(),vr=view.getBoundingClientRect();texInsert(d,[.06,Math.max(.03,(vr.top+40-pr.top)/pr.width)],'$$'+cur+'$$')};
+  cp.onclick=async()=>{try{await navigator.clipboard.writeText(cur);gs('اننسخ كود لاتيكس ✓')}catch(e){prompt('انسخ الكود:',cur)}};
+  cl.onclick=()=>dlg.hidden=true;
+  dlg.append(mk('b','','🐺 حساب Wolfram'),lab('رابط API الحساب:'),ui,lab('العملية:'),op,lab('التعبير:'),fi,lv,vi,lab_,rab,lN,ni,lD,di,go,out,box,ins,cp,cl)}
 $('moreB').onclick=()=>pick('الدفتر',[
   'هاي الصفحة',
   [(book.pages[curPg]&&book.pages[curPg].bm?'⭐ شيل علامة الصفحة':'☆ علّم الصفحة'),mcl('bmB')],
@@ -3343,6 +3552,9 @@ $('moreB').onclick=()=>pick('الدفتر',[
   ...(window.__PANE?[]:[['◧ تقسيم الشاشة',mcl('splB')]]),
   'أدوات',
   ['🧮 حاسبة ورسم',mcl('calcB')],
+  ['🐺 اختبار Wolfram Cloud',wfTest],
+  ['🐺 رسم Wolfram',wfPlot],
+  ['🐺 حساب Wolfram (تكامل، مشتقة، حل…)',wfCalc],
   ['📖 دليل التطبيق (شرح كل الأدوات)',()=>{if(window.__guide)window.__guide.open()}],
   ['❓ وضع المساعدة (المس أداة لتعرف شو بتعمل)',()=>{if(window.__guide)window.__guide.help()}],
   ['⚙ إعدادات اللمس ›',()=>pick('إعدادات اللمس',[
@@ -3421,7 +3633,7 @@ function geoPath(g,t,x0,y0,x1,y1,u){
 }
 function rdp(P,e){if(P.length<3)return P;const a=P[0],b=P[P.length-1],dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy)||1e-9;let m=0,k=0;for(let i=1;i<P.length-1;i++){const d=Math.abs(dy*(P[i][0]-a[0])-dx*(P[i][1]-a[1]))/l;if(d>m){m=d;k=i}}if(m<=e)return[a,b];return rdp(P.slice(0,k+1),e).slice(0,-1).concat(rdp(P.slice(k),e))}
 function recog(it){
-  const raw=it.p.map(q=>[q[0],q[1]]),PR=(it.p[0]&&typeof it.p[0][2]==='number')?it.p[0][2]:.5;let L=0,x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  const raw=it.p.map(q=>[q[0],q[1]]);let L=0,x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
   raw.forEach((q,i)=>{if(i)L+=Math.hypot(q[0]-raw[i-1][0],q[1]-raw[i-1][1]);x0=Math.min(x0,q[0]);y0=Math.min(y0,q[1]);x1=Math.max(x1,q[0]);y1=Math.max(y1,q[1])});
   const dg=Math.hypot(x1-x0,y1-y0);
   if(dg<.03||L<.05)return false;
@@ -3431,94 +3643,47 @@ function recog(it){
   P.push(raw[raw.length-1]);
   P=P.map((q,i)=>i===0||i===P.length-1?q:[(P[i-1][0]+2*q[0]+P[i+1][0])/4,(P[i-1][1]+2*q[1]+P[i+1][1])/4]);
   const n=P.length,a=P[0],z=P[n-1],chord=Math.hypot(z[0]-a[0],z[1]-a[1]);
-  const fin=(k,p)=>{it.k=k;it.p=p;if(k!=='s')delete it.n;delete it.a;return true};
+  const fin=(k,p)=>{it.k=k;it.p=p;delete it.n;delete it.a;return true};
   const dseg=(q,u,v)=>{const dx=v[0]-u[0],dy=v[1]-u[1],l2=dx*dx+dy*dy||1e-12;let t=((q[0]-u[0])*dx+(q[1]-u[1])*dy)/l2;t=Math.max(0,Math.min(1,t));return Math.hypot(q[0]-u[0]-t*dx,q[1]-u[1]-t*dy)};
   const ang=(p,q,r)=>{let t=Math.abs(Math.atan2(r[1]-q[1],r[0]-q[0])-Math.atan2(q[1]-p[1],q[0]-p[0]));if(t>Math.PI)t=2*Math.PI-t;return t*180/Math.PI};
-  /* v13.35: تقاطع ذاتي (حرف «لا»، حرف e، خربشة...) ما بنحوّله لشكل، ونجمة خماسية (متقاطعة أو مفرّغة) بتتحوّل لنجمة منتظمة */
-  const segX=(p,q,r,t)=>{const o=(a,b,c)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);const d1=o(p,q,r),d2=o(p,q,t),d3=o(r,t,p),d4=o(r,t,q);return d1*d2<0&&d3*d4<0};
-  const selfX=()=>{for(let i=0;i<n-1;i++)for(let j=i+8;j<n-1;j++)if(segX(P[i],P[i+1],P[j],P[j+1]))return true;return false};
-  const starFit=V0=>{let V=V0.map(q=>[q[0],q[1]]);{const D=dg,W=[];V.forEach(v=>{const l=W[W.length-1];if(l&&Math.hypot(v[0]-l[0],v[1]-l[1])<.12*D){l[0]=(l[0]+v[0])/2;l[1]=(l[1]+v[1])/2}else W.push(v)});while(W.length>2&&Math.hypot(W[0][0]-W[W.length-1][0],W[0][1]-W[W.length-1][1])<.12*D){const l=W.pop();W[0][0]=(W[0][0]+l[0])/2;W[0][1]=(W[0][1]+l[1])/2}V=W}const k=V.length;if(k!==5&&k!==10)return null;let cx=0,cy=0;V.forEach(q=>{cx+=q[0];cy+=q[1]});cx/=k;cy/=k;
-    const r=V.map(q=>Math.hypot(q[0]-cx,q[1]-cy)),an=V.map(q=>Math.atan2(q[1]-cy,q[0]-cx)),st=[];
-    for(let i=0;i<k;i++){let d=an[(i+1)%k]-an[i];while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;st.push(d)}
-    const dir=st.reduce((x,v)=>x+v,0)>0?1:-1,want=(k===5?144:36)*Math.PI/180,mean=a=>a.reduce((x,v)=>x+v,0)/a.length;
-    if(st.some(d=>Math.abs(d*dir-want)>(k===5?.5:.28)))return null;
-    const step=k===5?4*Math.PI/5:Math.PI/5;let sx=0,sy=0;for(let i=0;i<k;i++){const t=an[i]-i*dir*step;sx+=Math.cos(t);sy+=Math.sin(t)}const t0=Math.atan2(sy,sx),out=[];
-    if(k===5){const m=mean(r);if(r.some(v=>Math.abs(v-m)>.3*m))return null;for(let i=0;i<5;i++){const t=t0+i*dir*step;out.push([cx+m*Math.cos(t),cy+m*Math.sin(t)])}return out}
-    const ev=r.filter((v,i)=>i%2===0),od=r.filter((v,i)=>i%2===1),me=mean(ev),mo=mean(od),R1=Math.max(me,mo),R2=Math.min(me,mo),ro=me>=mo?0:1;
-    if(R2/R1<.3||R2/R1>.78||ev.some(v=>Math.abs(v-me)>.3*me)||od.some(v=>Math.abs(v-mo)>.3*mo))return null;
-    for(let i=0;i<10;i++){const t=t0+i*dir*step,rr=(i%2===ro)?R1:R2;out.push([cx+rr*Math.cos(t),cy+rr*Math.sin(t)])}return out};
   /* v13.31: زاوية (خطين متصلين) وجذر تربيعي: شكل مفتوح بزوايا حادة، بيتحوّل لخطوط مستقيمة (بنفس نقاط 's' فبيتحرك ويدور متل القوس) */
-  const dens=V=>{const o=[],pr=PR,mk=(x,y)=>[x,y,pr];for(let i=0;i<V.length-1;i++){const u=V[i],v=V[i+1],l=Math.hypot(v[0]-u[0],v[1]-u[1]),m=Math.max(1,Math.ceil(l/.004));for(let j=0;j<m;j++){const t=j/m;o.push(mk(u[0]+(v[0]-u[0])*t,u[1]+(v[1]-u[1])*t))}}o.push(mk(V[V.length-1][0],V[V.length-1][1]));return o};
-  const openPoly=cross=>{
-    const m=P.length;if(m<10)return null;
-    /* ملاءمة خط منكسر بـk ضلع (برمجة ديناميكية): الأخطاء بتنقاس بالمسافة عن الضلع */
-    const cm=[];for(let i=0;i<m;i++){cm.push(new Float64Array(m));for(let j=i+2;j<m;j++){let q=0;for(let t=i+1;t<j;t++){const d=dseg(P[t],P[i],P[j]);q+=d*d}cm[i][j]=q}}
-    const fit=K=>{let prev=new Float64Array(m).fill(1e18);prev[0]=0;const bk=[];
-      for(let k=1;k<=K;k++){const cur=new Float64Array(m).fill(1e18),bp=new Int16Array(m).fill(-1);
-        for(let j=1;j<m;j++)for(let i=0;i<j;i++){if(prev[i]>=1e17)continue;const c=prev[i]+(j-i<2?0:cm[i][j]);if(c<cur[j]){cur[j]=c;bp[j]=i}}
-        bk.push(bp);prev=cur}
-      const ix=[m-1];for(let k=K-1;k>=0;k--)ix.unshift(bk[k][ix[0]]);
-      return{ix,e:Math.sqrt(prev[m-1]/m)/dg}};
-    /* خط مناسب لنقاط بين فهرسين (بدون هامش جنب الزوايا المدوّرة) */
-    const line=(i,j,mi,mj)=>{const a0=i+mi,b0=j-mj;let n=0,cx=0,cy=0;for(let t=a0;t<=b0;t++){cx+=P[t][0];cy+=P[t][1];n++}if(n<2)return null;cx/=n;cy/=n;let sxx=0,syy=0,sxy=0;for(let t=a0;t<=b0;t++){const u=P[t][0]-cx,v=P[t][1]-cy;sxx+=u*u;syy+=v*v;sxy+=u*v}const th=.5*Math.atan2(2*sxy,sxx-syy);return{cx,cy,ux:Math.cos(th),uy:Math.sin(th)}};
-    const verts=ix=>{const K=ix.length-1,L=[];for(let k=0;k<K;k++){const g=ix[k+1]-ix[k],mg=Math.max(1,Math.floor(.2*g));L.push(line(ix[k],ix[k+1],k?mg:0,k<K-1?mg:0))}
-      if(L.some(x=>!x))return null;
-      const proj=(q,l)=>{const t=(q[0]-l.cx)*l.ux+(q[1]-l.cy)*l.uy;return[l.cx+l.ux*t,l.cy+l.uy*t]};
-      const V=[proj(P[0],L[0])];
-      for(let k=1;k<K;k++){const p=L[k-1],q=L[k],cr=p.ux*q.uy-p.uy*q.ux,s=P[ix[k]];let v=s;
-        if(Math.abs(cr)>.2){const t=((q.cx-p.cx)*q.uy-(q.cy-p.cy)*q.ux)/cr,x=[p.cx+p.ux*t,p.cy+p.uy*t];if(Math.hypot(x[0]-s[0],x[1]-s[1])<.15*dg)v=x}
-        V.push([v[0],v[1]])}
-      V.push(proj(P[m-1],L[K-1]));return V};
-    const ln=(u,v)=>Math.hypot(v[0]-u[0],v[1]-u[1]);
-    /* خط بيقطع حاله (حرف «لا» مثلاً): نفس الرسمة بخطوط مستقيمة وزوايا حادة وبيضل التقاطع */
-    if(cross){for(const K of[3,4,5]){const F=fit(K);if(F.e>.03)continue;const V=verts(F.ix);if(!V)continue;
-        let bad=false;for(let i=0;i<K;i++){const l=ln(V[i],V[i+1]);if(l<(i===0||i===K-1?.06:.12)*dg)bad=true}if(bad)continue;
-        for(let i=0;i<K;i++){const dx=V[i+1][0]-V[i][0],dy=V[i+1][1]-V[i][1],t=Math.abs(Math.atan2(dy,dx))*180/Math.PI;if(t<6||t>174)V[i+1][1]=V[i][1];else if(Math.abs(t-90)<6)V[i+1][0]=V[i][0]}
-        return{kind:'cross',e:F.e,pts:dens(V)}}return null}
-    /* جذر: (تيك) + نزول + صعود + خط أفقي */
-    for(const K of[4,3]){const F=fit(K);if(F.e>.035)continue;const V=verts(F.ix);if(!V)continue;const o=K-3,S=V[o],B=V[o+1],T=V[o+2],E=V[o+3],up=ln(B,T),dn=ln(S,B),bar=E[0]-T[0];
-      if(bar<.2*dg||Math.abs(E[1]-T[1])>.5*bar)continue;
-      if(!(T[1]<B[1]&&(B[1]-T[1])>.8*Math.abs(T[0]-B[0])))continue;
-      if(!(B[1]>S[1]&&dn<.7*up&&dn>.04*dg))continue;
-      if(o&&!(V[1][0]>V[0][0]&&V[1][1]<=V[0][1]&&ln(V[0],V[1])<.5*up))continue;
-      if(!(T[1]<=S[1]))continue;V[V.length-1][1]=T[1];return{kind:'root',e:F.e,pts:dens(V)}}
-    /* زاوية: ضلعين */
-    {const F=fit(2);if(F.e<.03){const V=verts(F.ix);if(V){const[A,B,C]=V,l0=ln(A,B),l1=ln(B,C),tn=ang(A,B,C);
-      if(l0>=.18*dg&&l1>=.18*dg&&tn>=30&&tn<=155){
-        let dx=B[0]-A[0],dy=B[1]-A[1],t=Math.abs(Math.atan2(dy,dx))*180/Math.PI;
-        if(t<6||t>174)B[1]=A[1];else if(Math.abs(t-90)<6)B[0]=A[0];
-        if(Math.abs(tn-90)<10){const ux=(B[0]-A[0])/ln(A,B),uy=(B[1]-A[1])/ln(A,B),cr=ux*(C[1]-B[1])-uy*(C[0]-B[0]),sg=cr>=0?1:-1;C[0]=B[0]-sg*uy*l1;C[1]=B[1]+sg*ux*l1}
-        else{dx=C[0]-B[0];dy=C[1]-B[1];t=Math.abs(Math.atan2(dy,dx))*180/Math.PI;if(t<6||t>174)C[1]=B[1];else if(Math.abs(t-90)<6)C[0]=B[0]}
-        return{kind:'angle',e:F.e,pts:dens([A,B,C])}}}}}
-    /* v13.37: أي شكل من خطوط مستقيمة (Z، N، W، M، درج، موجة مربعة...): 3-6 أضلاع، كل زاوية حادة (≥38°) والخطأ صغير؛ المنحنيات الناعمة بتطلع برا لأن زواياها صغيرة */
-    for(const K of[3,4,5,6]){const F=fit(K);if(F.e>.013)continue;const V=verts(F.ix);if(!V)continue;
-      /* لازم تقريباً كل النقاط (≥94%) قريبة من الأضلاع المستقيمة؛ المنحنيات الناعمة (S، موجة...) بتطلع برا */
-      {let ok=0;const tol=.01*dg;P.forEach(q=>{let d=1e9;for(let i=0;i<K;i++)d=Math.min(d,dseg(q,V[i],V[i+1]));if(d<tol)ok++});if(ok<.94*P.length)continue}
-      let bad=false;for(let i=0;i<K;i++){const l=ln(V[i],V[i+1]);if(l<(i===0||i===K-1?.07:.1)*dg)bad=true;if(i>0&&ang(V[i-1],V[i],V[i+1])<38)bad=true}
-      if(bad)continue;
-      for(let i=0;i<K;i++){const dx=V[i+1][0]-V[i][0],dy=V[i+1][1]-V[i][1],t=Math.abs(Math.atan2(dy,dx))*180/Math.PI;if(t<7||t>173)V[i+1][1]=V[i][1];else if(Math.abs(t-90)<7)V[i+1][0]=V[i][0]}
-      return{kind:'poly',e:F.e,pts:dens(V)}}
+  const dens=V=>{const o=[],pr=raw[0][2],mk=(x,y)=>{const q=[x,y];if(pr!==undefined)q.push(pr);return q};for(let i=0;i<V.length-1;i++){const u=V[i],v=V[i+1],l=Math.hypot(v[0]-u[0],v[1]-u[1]),m=Math.max(1,Math.ceil(l/.004));for(let j=0;j<m;j++){const t=j/m;o.push(mk(u[0]+(v[0]-u[0])*t,u[1]+(v[1]-u[1])*t))}}o.push(mk(V[V.length-1][0],V[V.length-1][1]));return o};
+  const openPoly=()=>{
+    const V=rdp(P,.045*dg).map(q=>[q[0],q[1]]),n=V.length,ln=(u,v)=>Math.hypot(v[0]-u[0],v[1]-u[1]);
+    if(n===3){const l0=ln(V[0],V[1]),l1=ln(V[1],V[2]),tn=ang(V[0],V[1],V[2]);
+      if(l0<.18*dg||l1<.18*dg||tn<25||tn>155)return null;
+      const A=V[0],B=V[1],C=V[2];
+      /* تعديل الأفقي/العمودي لأول ضلع، وبعدين لو الزاوية قريبة من 90° بنخليها قائمة */
+      let dx=B[0]-A[0],dy=B[1]-A[1],t=Math.abs(Math.atan2(dy,dx))*180/Math.PI;
+      if(t<6||t>174)B[1]=A[1];else if(Math.abs(t-90)<6)B[0]=A[0];
+      if(Math.abs(tn-90)<8){const ux=(B[0]-A[0])/ln(A,B),uy=(B[1]-A[1])/ln(A,B),cr=ux*(C[1]-B[1])-uy*(C[0]-B[0]),sg=cr>=0?1:-1;C[0]=B[0]-sg*uy*l1;C[1]=B[1]+sg*ux*l1}
+      else{dx=C[0]-B[0];dy=C[1]-B[1];t=Math.abs(Math.atan2(dy,dx))*180/Math.PI;if(t<6||t>174)C[1]=B[1];else if(Math.abs(t-90)<6)C[0]=B[0]}
+      return dens([A,B,C])}
+    if(n===4||n===5){const o=n-4,S=V[o],B=V[o+1],T=V[o+2],E=V[o+3],up=ln(B,T),dn=ln(S,B),bar=E[0]-T[0];
+      if(bar<.2*dg||Math.abs(E[1]-T[1])>.2*bar)return null;
+      if(!(T[1]<B[1]&&T[0]>B[0]&&(B[1]-T[1])>.8*(T[0]-B[0])))return null;
+      if(!(B[1]>S[1]&&dn<.7*up&&dn>.04*dg))return null;
+      if(o&&!(V[1][0]>V[0][0]&&V[1][1]<=V[0][1]&&ln(V[0],V[1])<.5*up))return null;
+      const W=V.map(q=>[q[0],q[1]]);W[W.length-1][1]=T[1];return dens(W)}
     return null};
   /* ١) خط مستقيم: شكل مفتوح وانحرافه عن الوتر صغير */
   if(chord>.35*dg){
-    if(selfX()){const X=openPoly(true);return X?fin('s',X.pts):false}
     let dev=0;P.forEach(q=>{dev=Math.max(dev,dseg(q,a,z))});
     if(dev<Math.max(.07*chord,.006)){const e=[z[0],z[1]],dx=z[0]-a[0],dy=z[1]-a[1],t=Math.abs(Math.atan2(dy,dx))*180/Math.PI;
       if(t<6||t>174)e[1]=a[1];else if(Math.abs(t-90)<6)e[0]=a[0];
       return fin('l',[[a[0],a[1]],e])}
-    const PC=openPoly();if(PC&&PC.kind==='root')return fin('s',PC.pts);
     /* قوس: ملاءمة دائرة للشكل المفتوح */
     {let m0=0,m1=0;P.forEach(q=>{m0+=q[0];m1+=q[1]});m0/=n;m1/=n;let Suu=0,Suv=0,Svv=0,Su3=0,Sv3=0,Suvv=0,Svuu=0;
       P.forEach(q=>{const u=q[0]-m0,v=q[1]-m1;Suu+=u*u;Suv+=u*v;Svv+=v*v;Su3+=u*u*u;Sv3+=v*v*v;Suvv+=u*v*v;Svuu+=v*u*u});
       const det=Suu*Svv-Suv*Suv,r1=.5*(Su3+Suvv),r2=.5*(Sv3+Svuu);
       if(Math.abs(det)>1e-12){const uc=(r1*Svv-r2*Suv)/det,vc=(Suu*r2-Suv*r1)/det,cx=m0+uc,cy=m1+vc,R=Math.sqrt(uc*uc+vc*vc+(Suu+Svv)/n);
         let er=0;P.forEach(q=>{er+=Math.abs(Math.hypot(q[0]-cx,q[1]-cy)-R)});er/=n*R;
-        if(er<.05&&R<3*dg&&R>.02&&!(PC&&PC.e<er*R/dg*.8)){let sw=0,pa=Math.atan2(P[0][1]-cy,P[0][0]-cx);const a0=pa;
+        if(er<.05&&R<3*dg&&R>.02){let sw=0,pa=Math.atan2(P[0][1]-cy,P[0][0]-cx);const a0=pa;
           for(let i=1;i<n;i++){const t=Math.atan2(P[i][1]-cy,P[i][0]-cx);let d=t-pa;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;sw+=d;pa=t}
-          if(Math.abs(sw)>.5&&Math.abs(sw)<5.9){const M=Math.max(16,Math.round(Math.abs(sw)*14)),pr=PR,out=[];
+          if(Math.abs(sw)>.5&&Math.abs(sw)<5.9){const M=Math.max(16,Math.round(Math.abs(sw)*14)),pr=raw[0][2],out=[];
             for(let i=0;i<=M;i++){const t=a0+sw*i/M;const q=[cx+R*Math.cos(t),cy+R*Math.sin(t)];if(pr!==undefined)q.push(pr);out.push(q)}
             return fin('s',out)}}}}
-    if(PC)return fin('s',PC.pts);
+    {const op=openPoly();if(op)return fin('s',op)}
     return false}
   /* ٢) شكل مغلق: نبحث عن الزوايا */
   let mi=0,m=0;P.forEach((q,i)=>{const d=Math.hypot(q[0]-a[0],q[1]-a[1]);if(d>m){m=d;mi=i}});
@@ -3531,7 +3696,6 @@ function recog(it){
   const tn=i=>ang(V[(i+V.length-1)%V.length],V[i],V[(i+1)%V.length]);
   for(let ch=1;ch&&V.length>3;){ch=0;let w=-1,wv=1e9;for(let i=0;i<V.length;i++){const t=tn(i),s=Math.hypot(V[(i+1)%V.length][0]-V[i][0],V[(i+1)%V.length][1]-V[i][1])<.06*per()?t-40:t;if(s<28&&s<wv){wv=s;w=i}}if(w>=0){V.splice(w,1);ch=1}}
   const k=V.length;
-  {const S=starFit(V);if(S)return fin('q',S)}
   /* قياس خطأ المطابقة لكل مرشّح */
   const pe=k>=3?P.reduce((s,q)=>{let d=1e9;for(let i=0;i<k;i++)d=Math.min(d,dseg(q,V[i],V[(i+1)%k]));return s+d},0)/n/dg:1;
   /* قطع ناقص: محاور من العزوم (يدعم المائل) */
@@ -5732,7 +5896,7 @@ document.addEventListener('contextmenu',e=>{if(e.target&&e.target.tagName==='CAN
 document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!s||s.isCollapsed||!s.rangeCount)return;const n=s.anchorNode,el=n&&(n.nodeType===1?n:n.parentElement);if(!el||!el.closest||el.closest('.tl,input,textarea,[contenteditable]'))return;const cs=getComputedStyle(el);if((cs.userSelect||cs.webkitUserSelect)==='text')return;s.removeAllRanges()}catch(e){}});
 /* ---------- pinch / wheel zoom ---------- */
 let pz=null;const tdist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
-view.addEventListener('touchstart',e=>{if(e.touches.length===2){const r=view.getBoundingClientRect();pagesEl.querySelectorAll('canvas').forEach(c=>c.dispatchEvent(new Event('nbcancel')));pz={sl:view.scrollLeft,st:view.scrollTop,d:tdist(e.touches),z:zoom,k:1,cx:(e.touches[0].clientX+e.touches[1].clientX)/2-r.left,cy:(e.touches[0].clientY+e.touches[1].clientY)/2-r.top};pz.a=zAnc(pz.cx,pz.cy);pinching=true;{const pr=pagesEl.getBoundingClientRect();pagesEl.style.transformOrigin=(r.left+pz.cx-pr.left)+'px '+(r.top+pz.cy-pr.top)+'px'}}},{passive:true});
+view.addEventListener('touchstart',e=>{if(e.touches.length===2){const r=view.getBoundingClientRect();pagesEl.querySelectorAll('canvas').forEach(c=>c.dispatchEvent(new Event('nbcancel')));pz={sl:view.scrollLeft,st:view.scrollTop,d:tdist(e.touches),z:zoom,k:1,cx:(e.touches[0].clientX+e.touches[1].clientX)/2-r.left,cy:(e.touches[0].clientY+e.touches[1].clientY)/2-r.top};pz.a=zAnc(pz.cx,pz.cy);pinching=true;pagesEl.style.transformOrigin=(pz.cx+sxN())+'px '+(pz.cy+view.scrollTop)+'px'}},{passive:true});
 view.addEventListener('touchmove',e=>{if(pz&&e.touches.length===2){e.preventDefault();pz.k=Math.max(ZMIN/pz.z,Math.min(ZMAX/pz.z,tdist(e.touches)/pz.d));pagesEl.style.transform='scale('+pz.k+')';zBadge(Math.round(pz.z*pz.k*100)+'%');const r=view.getBoundingClientRect(),nx=(e.touches[0].clientX+e.touches[1].clientX)/2-r.left,ny=(e.touches[0].clientY+e.touches[1].clientY)/2-r.top;pz.ex=nx;pz.ey=ny;view.scrollLeft=pz.sl+pz.cx-nx;view.scrollTop=pz.st+pz.cy-ny}},{passive:false});
 const endPinch=e=>{if(!pz||e.touches.length>=2)return;const p=pz;pz=null;pagesEl.style.transform='';pagesEl.style.transformOrigin='';try{if(Math.abs(p.k-1)>.02)setZoom(p.z*p.k,p.ex!=null?p.ex:p.cx,p.ey!=null?p.ey:p.cy,p.a)}finally{setTimeout(()=>{pinching=false},80)}};
 view.addEventListener('touchend',endPinch);view.addEventListener('touchcancel',endPinch);
