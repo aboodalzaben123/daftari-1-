@@ -26,72 +26,6 @@ html.pane #splB,html.pane #splB2,html.pane #bkNag,html.pane #stNote,html.pane #u
 <style id="geocss">#geo{padding-top:4px}#geoTools,#geoActs{gap:5px;margin:6px 0 0}#geoTools button,#geoActs button{padding:6px 8px;font-size:13px}#geoSt{min-height:20px;margin:6px 2px}#geoBoard{width:100%;height:320px;direction:ltr;touch-action:none;background:#fff;border-radius:8px;box-shadow:0 0 0 1px var(--line);overflow:hidden;position:relative}#geoBoard svg{touch-action:none;display:block}#calc.mini #geo{display:none!important}</style>
 <style id="foldskin">.fold.fsk{background:transparent!important;padding:2px 0!important;display:flex;justify-content:center}.fsk svg{width:100%;height:84px;display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.25))}.fsk svg *{vector-effect:none}.grid.list .bk .fold.fsk svg{height:56px}.bk .mn{z-index:5}</style>
 <style id="fitfix">.panel,#dlg,#pmenu{max-width:min(96vw,calc(100% - 12px))!important}#pmenu{max-height:calc(100% - 16px);overflow:auto}</style>
-<script id="errlogjs">
-/* ===== سجل أخطاء على الشاشة (للتجربة): زر 🐞 صغير، بيحمرّ لما يصير خطأ. اضغطه لتشوف التفاصيل وتنسخها ===== */
-(()=>{if(window.__ERRLOG)return;
-const KEY='nberrlog',MAX=40,TAPMAX=25,L=[];let trace=false,badge=null,panel=null,list=null,tbtn=null,seq=0;
-const hhmm=()=>new Date().toTimeString().slice(0,8);
-try{const s=JSON.parse(localStorage.getItem(KEY)||'[]');if(Array.isArray(s))s.slice(-MAX).forEach(x=>{x.old=1;x.q=++seq;L.push(x)})}catch(e){}
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(L.filter(x=>x.k!=='tap').slice(-MAX).map(x=>({t:x.t,k:x.k,m:x.m,w:x.w,s:x.s,n:x.n}))))}catch(e){}};
-const add=(k,m,w,s)=>{try{
-  m=String(m==null?'':m).slice(0,400);w=String(w||'');
-  if(k==='error'&&/ResizeObserver loop/.test(m))return;
-  const last=L[L.length-1];
-  if(k!=='tap'&&last&&!last.old&&last.k===k&&last.m===m&&last.w===w){last.n=(last.n||1)+1;last.t=hhmm()}
-  else{L.push({t:hhmm(),k,m,w,s:String(s||'').split('\n').slice(0,6).join('\n').slice(0,700),n:1,q:++seq});
-    if(k==='tap'){const taps=L.filter(x=>x.k==='tap');if(taps.length>TAPMAX)L.splice(L.indexOf(taps[0]),1)}
-    else if(L.filter(x=>x.k!=='tap').length>MAX)L.splice(L.findIndex(x=>x.k!=='tap'),1)}
-  save();ui();return L[L.length-1]}catch(e){}};
-const cnt=()=>L.filter(x=>!x.old&&(x.k==='error'||x.k==='promise'||x.k==='handler'||x.k==='console')).reduce((a,x)=>a+(x.n||1),0);
-const LBL={error:'خطأ',promise:'وعد مرفوض',handler:'خطأ بمعالج القلم/اللمس',console:'console.error',silent:'خطأ صامت (ما بيظهر للمستخدم)',tap:'لمسة'};
-const fmt=x=>'['+x.t+'] '+(LBL[x.k]||x.k)+(x.n>1?' ×'+x.n:'')+(x.old?' (جلسة سابقة)':'')+'\n'+x.m+(x.w?'\n@ '+x.w:'')+(x.s?'\n'+x.s:'');
-const head=()=>'UA: '+navigator.userAgent+'\nشاشة: '+innerWidth+'x'+innerHeight+' dpr='+(devicePixelRatio||1)+'\nنسخة التطبيق: '+((document.querySelector('meta[name=app-version]')||{}).content||'?');
-const ui=()=>{if(!badge)return;const n=cnt();badge.textContent=n?'🐞 '+n:'🐞';badge.classList.toggle('bad',n>0);if(panel&&!panel.hidden)render()};
-const render=()=>{if(!list)return;list.textContent='';
-  const rows=L.slice().sort((a,b)=>b.q-a.q);
-  if(!rows.length){const d=document.createElement('div');d.className='e';d.textContent='ما في أخطاء مسجّلة.';list.append(d);return}
-  rows.forEach(x=>{const d=document.createElement('div');d.className='e '+x.k+(x.old?' old':'');const b=document.createElement('b');b.textContent='['+x.t+'] '+(LBL[x.k]||x.k)+(x.n>1?' ×'+x.n:'')+(x.old?' (جلسة سابقة)':'');d.append(b,document.createTextNode('\n'+x.m+(x.w?'\n@ '+x.w:'')+(x.s?'\n'+x.s:'')));list.append(d)})};
-const copy=async()=>{const txt=head()+'\n\n'+L.slice().sort((a,b)=>b.q-a.q).map(fmt).join('\n\n');
-  try{await navigator.clipboard.writeText(txt);return true}catch(e){}
-  try{const t=document.createElement('textarea');t.value=txt;t.style.cssText='position:fixed;opacity:0;top:0';document.body.append(t);t.select();const ok=document.execCommand('copy');t.remove();return ok}catch(e){return false}};
-const tx=n=>{try{const b=n.closest&&n.closest('button,a,[role=button],label,summary');if(!b)return'';const s=((b.textContent||'').trim().replace(/\s+/g,' ')||b.title||'').slice(0,18);return s?' "'+s+'"':''}catch(e){return''}};
-const dn=n=>{if(!n||!n.tagName)return String(n);let s=n.tagName.toLowerCase()+(n.id?'#'+n.id:'')+tx(n);try{if(typeof n.className==='string'&&n.className.trim())s+='.'+n.className.trim().split(/\s+/).slice(0,2).join('.');if(n.disabled)s+=' [disabled]';if(getComputedStyle(n).pointerEvents==='none')s+=' [pe:none]'}catch(e){}return s};
-const build=()=>{
-  const st=document.createElement('style');st.textContent=
-  '#elb{position:fixed;z-index:2147483000;right:6px;bottom:calc(env(safe-area-inset-bottom,0px) + 96px);min-width:34px;height:34px;padding:0 10px;border-radius:17px;border:0;font:600 13px system-ui,sans-serif;background:rgba(60,60,67,.55);color:#fff;opacity:.5;touch-action:manipulation}'+
-  '#elb.bad{background:#d62d3a;opacity:1}'+
-  '#elp{position:fixed;z-index:2147483001;left:0;right:0;bottom:0;max-height:72vh;display:flex;flex-direction:column;background:#fff;color:#111;border-top:2px solid #d62d3a;box-shadow:0 -6px 24px rgba(0,0,0,.3);font:13px system-ui,sans-serif;direction:rtl}'+
-  '#elp[hidden]{display:none}#elp .h{display:flex;gap:6px;align-items:center;padding:8px 10px;flex-wrap:wrap;border-bottom:1px solid #ddd}'+
-  '#elp .h strong{flex:1;min-width:90px}#elp button{font:inherit;padding:7px 12px;border-radius:8px;border:1px solid #bbb;background:#f4f4f6;color:#111}#elp button.on{background:#0a64d6;color:#fff;border-color:#0a64d6}'+
-  '#elp .b{overflow:auto;padding:4px 10px 12px;-webkit-overflow-scrolling:touch}'+
-  '#elp .e{border-bottom:1px solid #eee;padding:7px 0;direction:ltr;text-align:left;font:12px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-word}'+
-  '#elp .e b{color:#d62d3a}#elp .e.old{opacity:.55}#elp .e.tap b{color:#0a64d6}#elp .e.silent b{color:#b7791f}';
-  document.head.append(st);
-  badge=document.createElement('button');badge.id='elb';badge.type='button';badge.textContent='🐞';badge.setAttribute('aria-label','سجل الأخطاء');
-  panel=document.createElement('div');panel.id='elp';panel.hidden=true;
-  const h=document.createElement('div');h.className='h';const ti=document.createElement('strong');ti.textContent='سجل الأخطاء';
-  const mk=(t,f)=>{const b=document.createElement('button');b.type='button';b.textContent=t;b.onclick=f;return b};
-  const cb=mk('نسخ الكل',async e=>{const ok=await copy();e.target.textContent=ok?'تم النسخ ✓':'ما اننسخ';setTimeout(()=>e.target.textContent='نسخ الكل',1600)});
-  tbtn=mk('تتبع اللمس: مطفي',()=>{trace=!trace;tbtn.textContent='تتبع اللمس: '+(trace?'شغّال':'مطفي');tbtn.classList.toggle('on',trace)});
-  const cl=mk('مسح',()=>{L.length=0;save();ui();render()});
-  const x=mk('✕',()=>{panel.hidden=true});
-  h.append(ti,cb,tbtn,cl,x);list=document.createElement('div');list.className='b';panel.append(h,list);
-  badge.onclick=()=>{panel.hidden=!panel.hidden;if(!panel.hidden)render()};
-  document.body.append(badge,panel);ui()};
-if(document.body)build();else document.addEventListener('DOMContentLoaded',build);
-addEventListener('error',e=>{if(e.target&&e.target!==window)return;add('error',e.message,((e.filename||'').split('/').pop()||'')+':'+(e.lineno||0)+':'+(e.colno||0),e.error&&e.error.stack)});
-addEventListener('unhandledrejection',e=>{const r=e.reason;add('promise',r&&r.message||String(r),'',r&&r.stack)});
-const ce=console.error;console.error=function(){try{add('console',[].map.call(arguments,a=>a&&a.message?a.message:typeof a==='object'?JSON.stringify(a):String(a)).join(' '))}catch(_){}return ce.apply(console,arguments)};
-const inUI=t=>t&&t.closest&&t.closest('#elp,#elb');
-document.addEventListener('pointerdown',e=>{if(!trace||inUI(e.target))return;let top=null;try{top=document.elementFromPoint(e.clientX,e.clientY)}catch(_){}
-  add('tap',e.pointerType+' @'+Math.round(e.clientX)+','+Math.round(e.clientY),'target='+dn(e.target)+(top!==e.target?'  top='+dn(top):''))},true);
-const watch=en=>{if(!en)return;let c=0;const mo=new MutationObserver(rs=>{rs.forEach(r=>{const t=r.target.nodeType===1?r.target:r.target.parentElement;if(!(t&&t.closest&&t.closest('#elp,#elb')))c++})});
-  mo.observe(document.body,{subtree:true,childList:true,attributes:true,characterData:true});
-  setTimeout(()=>{mo.disconnect();en.w=(en.w||'')+'\n→ بعد 0.45 ثانية: '+(c?'الصفحة تغيّرت ('+c+' تعديل)':'ولا تغيير بالصفحة (الزر ما عمل شي ظاهر)');save();ui()},450)};
-document.addEventListener('click',e=>{if(!trace||inUI(e.target))return;watch(add('tap','click','target='+dn(e.target)))},true);
-window.__ERRLOG={add,get list(){return L}};
-})();
-</script>
 <style id="appcss">
 :root{--bg:#f3f6fb;--card:#ffffff;--elev:#eaf0f8;--ink:#1c2433;--mute:#66738a;--line:#d9e1ee;--accent:#3b82f6;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#f3f6fb;--card:#ffffff;--elev:#eaf0f8;--ink:#1c2433;--mute:#66738a;--line:#d9e1ee;--accent:#3b82f6}}
@@ -6161,7 +6095,7 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
     const v=SPD[spd][1],tl=timeline(s.items,v);Object.assign(s,{T:tl.T,total:tl.total,t:0,ci:0,playing:true,fin:false,last:performance.now()});
     s.n=()=>s.ci;s.ends=pause?new Set(mkSteps(s.items,defGr(s.pg)).map(x=>x.b-1)):null;redraw();
     const pp=mkB('⏸',()=>toggle(),'','إيقاف مؤقت / متابعة'),sp=mkB(SPD[spd][0],()=>{spd=(spd+1)%SPD.length;keep();reSpd()},'','السرعة');
-    const rs=mkB('⏮',()=>restart(),'','من الأول'),ex=mkB('✕',stop,'','خروج'),mn=mkB('⌄',()=>s.bar.classList.add('min'),'rpm','إخفاء الشريط');
+    const rs=mkB('⏮',()=>restart(),'','من الأول'),ex=mkB('✕',stop,'','خروج'),mn=mkB('⌄',()=>s.bar.classList.toggle('min'),'rpm','إخفاء / إظهار الشريط');
     s.bar.append(ex,rs,pp,sp,mn);s.bar.onclick=()=>s.bar.classList.remove('min');s.pp=pp;s.sp=sp;
     s.cov.onclick=()=>toggle();
     s.kd=e=>{if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target&&e.target.tagName))return;if(e.key==='Escape')stop();else if(e.key===' '){e.preventDefault();toggle()}};
@@ -6195,7 +6129,7 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
     s.gr=g==null?defGr(s.pg):g;s.steps=mkSteps(s.items,s.gr);s.si=mode==='f'?1:0;
     s.n=()=>mode==='f'?s.items.length:(s.si?s.steps[s.si-1].b:0);redraw();
     const nx=mkB('▶',()=>go(1),'rpn','الخطوة الجاية'),pv=mkB('◀',()=>go(-1),'','رجوع'),cn=document.createElement('span');cn.className='rpc';
-    const mkr=mkB('✂',mark,'','فاصل: الخطوة بتنتهي بآخر خط ظاهر'),cf=mkB('⚙',settings,'','إعدادات'),rs=mkB('⏮',()=>goTo(mode==='f'?1:0),'','من الأول'),ex=mkB('✕',stop,'','خروج'),mn=mkB('⌄',()=>s.bar.classList.add('min'),'rpm','إخفاء الشريط');
+    const mkr=mkB('✂',mark,'','فاصل: الخطوة بتنتهي بآخر خط ظاهر'),cf=mkB('⚙',settings,'','إعدادات'),rs=mkB('⏮',()=>goTo(mode==='f'?1:0),'','من الأول'),ex=mkB('✕',stop,'','خروج'),mn=mkB('⌄',()=>s.bar.classList.toggle('min'),'rpm','إخفاء / إظهار الشريط');
     s.bar.append(ex,rs,pv,cn,nx,mkr,cf,mn);s.bar.onclick=()=>s.bar.classList.remove('min');Object.assign(s,{nx,pv,cn});
     s.cov.onclick=()=>go(1);
     s.kd=e=>{if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target&&e.target.tagName))return;const k=e.key;
