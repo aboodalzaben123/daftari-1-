@@ -405,7 +405,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 #sw .cpw i{position:absolute;left:5px;top:5px;right:5px;bottom:5px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25);pointer-events:none}
 #sw .cpw input[type=color]{position:absolute;left:0;top:0;width:100%;height:100%;margin:0;padding:0;border:0;opacity:0;cursor:pointer}
 </style>
-<style id="noerrbtn">#elb,#elp{display:none!important}</style></head>
+</head>
 <body>
 <div id="lib" hidden>
   <div id="tabsL" class="tabs" hidden></div>
@@ -2247,12 +2247,12 @@ $('undoB').onclick=doUndo;$('redoB').onclick=doRedo;
 /* #view صار LTR (الصفحات والأدوات جواته بتضل RTL): scrollLeft عادي من 0 لآخر العرض، فحافة الصفحة اليسار واليمين دايماً بتنوصل بالتساوي */
 const sxN=()=>view.scrollLeft,setSxN=v=>{view.scrollLeft=v};
 /* التكبير بيثبّت النقطة اللي تحت الإصبع/المؤشر بالنسبة لعرض الصفحة نفسها (مش بإحداثيات السكرول): الصفحة متوسّطة بهوامش، فالمعادلة القديمة كانت ترمي الدفتر لأقصى اليمين */
-function zAnc(cx,cy){const vr=view.getBoundingClientRect(),X=vr.left+cx,Y=vr.top+cy;let best=null,bd=1e18;for(const el of pagesEl.children){const q=el.getBoundingClientRect();if(!q.width)continue;const dx=X<q.left?q.left-X:X>q.right?X-q.right:0,dy=Y<q.top?q.top-Y:Y>q.bottom?Y-q.bottom:0,d=dx*dx+dy*dy;if(d<bd){bd=d;best=el;if(!d)break}}if(!best)return null;const q=best.getBoundingClientRect();return{el:best,u:(X-q.left)/q.width}}
+function zAnc(cx,cy){const vr=view.getBoundingClientRect(),X=vr.left+cx,Y=vr.top+cy;let best=null,bd=1e18;for(const el of pagesEl.children){const q=el.getBoundingClientRect();if(!q.width)continue;const dx=X<q.left?q.left-X:X>q.right?X-q.right:0,dy=Y<q.top?q.top-Y:Y>q.bottom?Y-q.bottom:0,d=dx*dx+dy*dy;if(d<bd){bd=d;best=el;if(!d)break}}if(!best)return null;const q=best.getBoundingClientRect(),u=Math.max(0,Math.min(1,(X-q.left)/q.width)),v=Math.max(0,Math.min(1,(Y-q.top)/Math.max(1,q.height)));return{el:best,u,v,ox:X-q.left-u*q.width,oy:Y-q.top-v*q.height}}
 const ZMIN=.5,ZMAX=3;let zbT=0;
 function zBadgeHide(){clearTimeout(zbT);const b=$('zbadge');if(b)b.classList.remove('on')}
 function zBadge(t){const b=$('zbadge');if(!b)return;if($('ed').hidden){zBadgeHide();return}const vr=view.getBoundingClientRect();b.style.top=(vr.top+10)+'px';b.style.left=(vr.left+12)+'px';b.textContent=t;b.classList.add('on');clearTimeout(zbT);zbT=setTimeout(()=>b.classList.remove('on'),1400)}
 function zUi(){const t=Math.round(zoom*100)+'%';$('zr').textContent=t;zBadge(t)}
-function setZoom(nz,cx,cy,anc){nz=Math.max(ZMIN,Math.min(ZMAX,nz));if(cx===undefined){cx=view.clientWidth/2;cy=view.clientHeight/2}const r=nz/zoom,sx=sxN()+cx,sy=view.scrollTop+cy,a=anc||zAnc(cx,cy);zoom=nz;DOM.forEach(fit);if(a&&a.el.isConnected){const vr=view.getBoundingClientRect(),q=a.el.getBoundingClientRect();view.scrollLeft+=q.left+a.u*q.width-(vr.left+cx)}else setSxN(sx*r-cx);view.scrollTop=sy*r-cy;if(book)book.zm=zoom;zUi()}
+function setZoom(nz,cx,cy,anc){nz=Math.max(ZMIN,Math.min(ZMAX,nz));if(cx===undefined){cx=view.clientWidth/2;cy=view.clientHeight/2}const r=nz/zoom,sx=sxN()+cx,sy=view.scrollTop+cy,a=anc||zAnc(cx,cy);zoom=nz;DOM.forEach(fit);if(a&&a.el.isConnected&&a.v!==undefined){const vr=view.getBoundingClientRect(),q=a.el.getBoundingClientRect();view.scrollLeft+=q.left+a.u*q.width+a.ox-(vr.left+cx);view.scrollTop+=q.top+a.v*q.height+a.oy-(vr.top+cy)}else{setSxN(sx*r-cx);view.scrollTop=sy*r-cy};if(book)book.zm=zoom;zUi()}
 $('zi').onclick=()=>setZoom(zoom*1.25);$('zo').onclick=()=>setZoom(zoom/1.25);$('zr').onclick=()=>setZoom(1);
 $('title').oninput=e=>{book.title=e.target.value;delete book.auto;save()};
 $('po').onchange=e=>{po=e.target.checked;saveSet()};
@@ -2606,12 +2606,13 @@ async function lsnSplit(M,src,col,fs,sc,opt,rem){const cuts=lsnCuts(src);if(!cut
   return[{o:ao,k:'p',src:a},{o:ro,k:'p',src:b}]}
 /* إعادة رسم صور الدرس لما لون الصفحة يتغير (غامق <-> فاتح): النص بياخد لون مناسب، والصناديق نصها غامق دايماً */
 async function lsnRefresh(pgs){const L=(pgs||[]).filter(p=>p&&p.items&&p.items.some(i=>i.ls));if(!L.length)return;
-  let M=null;try{M=await loadMJ({})}catch(e){}if(!M)return;
+  let M=null;try{M=await loadMJ({})}catch(e){}
   const sc=2,W0=900*(1-2*.07);let ch=0;
   for(const pg of L){const dk=psDark(pg)?1:0,tc=dk?'#f1f5f9':'#111827',hc=dk?'#93c5fd':'#1e3a8a';
     for(const it of pg.items){const l=it.ls;if(!l||l.dk===dk)continue;
+      if(!M&&/\$|\(|\[|egin\{/.test(l.s||it.tex||''))continue;
       try{let o;
-        if(l.k[0]==='h'){const n=+l.k[1];o=await texCanvas(M,l.s,n===1?hc:tc,l.fs*(n===1?1.6:n===2?1.3:1.1),sc,{bold:true,rule:n===1?hc:(n===2?'#9ca3af':0),maxW:W0*sc,fixW:true})}
+        if(l.k[0]==='h'){const n=+l.k[1];o=await texCanvas(M,l.s,n===1?hc:tc,l.fs*(n===1?1.6:n===2?1.3:1.1),sc,{bold:true,maxW:W0*sc})}
         else if(it.tex)o=await texCanvas(M,lsnMark(it.tex),tc,l.fs,sc,{maxW:W0*sc,fixW:true});
         else continue;
         it.src=o.src;IT.delete(it);l.dk=dk;ch++}catch(e){}}
@@ -2900,8 +2901,7 @@ function mergeDlg(b){
         c.pages.forEach(p=>delete p.cvr);b.pages.push(...c.pages);covFix(b.pages);
         const t=[...new Set([...(b.tags||[]),...(c.tags||[])])];if(t.length)b.tags=t;
         S.books=S.books.filter(z=>z!==c);b.ts=b.mod=Date.now();
-        save();flushSave();showLib();gs('تم الدمج ✓ ('+b.pages.length+' صفحة)')}]])]))}
-const FBK='M4 12Q4 5 11 5H37Q42 5 45 9L49 13H89Q96 13 96 20V72Q96 80 88 80H12Q4 80 4 72Z',FFR='M4 25Q4 19 10 19H90Q96 19 96 25V72Q96 80 88 80H12Q4 80 4 72Z';
+        save();flushSave();showLib();gs('تم الدمج ✓ ('+b.pages.length+' صفحة)')}]])]))}const FBK='M4 12Q4 5 11 5H37Q42 5 45 9L49 13H89Q96 13 96 20V72Q96 80 88 80H12Q4 80 4 72Z',FFR='M4 25Q4 19 10 19H90Q96 19 96 25V72Q96 80 88 80H12Q4 80 4 72Z';
 const FB=(b,f,mid)=>'<path d="'+FBK+'" style="fill:'+b+'"/>'+(mid||'')+'<path d="'+FFR+'" style="fill:'+f+'"/><path d="M4 25Q4 19 10 19H90Q96 19 96 25V40H4Z" fill="#fff" opacity=".13"/>';
 const FDK='color-mix(in srgb,var(--bc) 62%,#000)',FCL='var(--bc)';
 const FSY=x=>FB(FDK,FCL)+x;
@@ -3174,6 +3174,15 @@ function tsAlpha(c2,W,H,col){const m=/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})
     const B=Bs[bi];for(let c=0;c<3;c++){const f=(D[i+c]-(1-a)*B[c])/a;D[i+c]=f<0?0:f>255?255:f}
     D[i+3]=Math.round(A0*(a>1?1:a))}
   c2.putImageData(im,0,0)}
+function tsPickBg(D,col){
+  const m=/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(col||''),B0=m?[parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)]:[255,255,255];
+  const Bs=tsBgSet(D,B0);if(Bs.length<=1)return col||'#ffffff';
+  const cnt=new Array(Bs.length).fill(0);
+  for(let i=0;i<D.length;i+=16){if(D[i+3]<250)continue;let bi=0,bd=1e9;
+    for(let j=0;j<Bs.length;j++){const B=Bs[j],d=Math.hypot(D[i]-B[0],D[i+1]-B[1],D[i+2]-B[2]);if(d<bd){bd=d;bi=j}}
+    if(bd<36)cnt[bi]++}
+  let best=0;for(let j=1;j<Bs.length;j++)if(cnt[j]>cnt[best])best=j;
+  const C=Bs[best];return'#'+[C[0],C[1],C[2]].map(v=>Math.round(v).toString(16).padStart(2,'0')).join('')}
 function tsMove(d,pts){const pg=d.pg;if(!pts||pts.length<3)return;
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;pts.forEach(q=>{x0=Math.min(x0,q[0]);x1=Math.max(x1,q[0]);y0=Math.min(y0,q[1]);y1=Math.max(y1,q[1])});
   x0=Math.max(0,x0);y0=Math.max(0,y0);x1=Math.min(1,x1);y1=Math.min(pg.ar,y1);
@@ -3318,215 +3327,6 @@ const mcl=id=>()=>{const b=$(id);if(b)b.click()};
 function splDlg(){let sc='page';dlg.textContent='';dlg.hidden=false;dlg.append(mk('b','','✂ تنصيف الصفحة'),segB([['page','هالصفحة بس'],['all','كل صفحات الدفتر']],()=>sc,v=>{sc=v}));
   [['┃ عمودي (نصفين يمين ويسار)','v'],['━ أفقي (نصفين فوق وتحت)','h'],['╋ الاثنين (4 أجزاء)','vh'],['✕ شيل التنصيف',null]].forEach(([l,v])=>{const b=mk('button','',l);b.onclick=()=>{dlg.hidden=true;setSplit(v,sc==='all'?1:0)};dlg.append(b)});
   const x=mk('button','danger','إغلاق');x.onclick=()=>dlg.hidden=true;dlg.append(x)}
-/* ===== اختبار Wolfram Cloud (تجريبي): بيجرّب إذا المتصفح بيسمح بنداء API منشور على Wolfram Cloud (CORS) ===== */
-function wfTest(){
-  let u='';try{u=localStorage.getItem('wf_url')||''}catch(e){}
-  dlg.textContent='';dlg.hidden=false;
-  const ui=mk('input','cin'),xi=mk('input','cin'),out=mk('div','st'),go=mk('button','primary','اختبار'),cl=mk('button','danger','إغلاق');
-  ui.placeholder='https://www.wolframcloud.com/obj/.../daftari-test';ui.style.cssText='font-size:16px;direction:ltr;text-align:left';ui.value=u;
-  xi.value='hello';xi.style.cssText='font-size:16px;direction:ltr;text-align:left';
-  out.style.cssText='white-space:pre-wrap;direction:rtl;text-align:right;margin:6px 4px;min-height:44px;line-height:1.7';
-  go.onclick=async()=>{
-    const url=ui.value.trim();if(!/^https:\/\//.test(url)){out.textContent='الصق رابط الـ API كامل (يبدأ بـ https://)';return}
-    try{localStorage.setItem('wf_url',url)}catch(e){}
-    out.textContent='جاري الاتصال…';go.disabled=true;
-    const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),20000),t0=Date.now();
-    try{
-      const r=await fetch(url+(url.includes('?')?'&':'?')+'x='+encodeURIComponent(xi.value),{signal:ac.signal}),tx=await r.text();
-      out.textContent=(r.ok?'✓ شغّال: المتصفح سمح بالنداء (CORS تمام)':'⚠ الرد وصل بس بحالة '+r.status)+'\nالزمن: '+(Date.now()-t0)+' ملي ثانية\nالرد: '+tx.slice(0,400)}
-    catch(e){
-      out.textContent=(e.name==='AbortError'?'✗ انتهت المهلة (20 ثانية)':'✗ فشل النداء')+'\nأغلب الأسباب: المتصفح حجب الرد (CORS)، أو ما في نت، أو الرابط غلط.\nجرّب تفتح الرابط مباشرة بتبويب جديد: إذا اشتغل هناك وفشل هون، يعني CORS.'}
-    finally{clearTimeout(tm);go.disabled=false}};
-  cl.onclick=()=>dlg.hidden=true;
-  dlg.append(mk('b','','🐺 اختبار Wolfram Cloud'),mk('div','st','رابط الـ API المنشور:'),ui,mk('div','st','نص الاختبار:'),xi,go,out,cl)}
-/* ===== رسم Wolfram Cloud (تجريبي): بيبعت الاقتران لـ API على Wolfram Cloud وبيرجع صورة الرسمة، وبتقدر تدرجها بالصفحة ===== */
-function wfConv(s){
-  const AD='٠١٢٣٤٥٦٧٨٩';
-  s=String(s).replace(/[٠-٩]/g,c=>AD.indexOf(c)).replace(/٫/g,'.').replace(/[×·]/g,'*').replace(/÷/g,'/').replace(/[−–]/g,'-').replace(/π/g,'Pi').replace(/∞/g,'Infinity').replace(/²/g,'^2').replace(/³/g,'^3').replace(/،/g,',').replace(/؛/g,';');
-  const FN={sin:'Sin',cos:'Cos',tan:'Tan',cot:'Cot',sec:'Sec',csc:'Csc',asin:'ArcSin',acos:'ArcCos',atan:'ArcTan',arcsin:'ArcSin',arccos:'ArcCos',arctan:'ArcTan',sinh:'Sinh',cosh:'Cosh',tanh:'Tanh',sqrt:'Sqrt',exp:'Exp',ln:'Log',log:'Log10',log2:'Log2',abs:'Abs',floor:'Floor',ceil:'Ceiling',round:'Round',sign:'Sign',max:'Max',min:'Min',mod:'Mod',piecewise:'Piecewise',gamma:'Gamma',erf:'Erf',sinc:'Sinc'};
-  let out='',st=[],i=0;
-  while(i<s.length){
-    const m=/^[A-Za-z]+\d*/.exec(s.slice(i));
-    if(m){const w=m[0],lw=w.toLowerCase();let j=i+w.length;
-      if(FN[lw]&&/^\s*\(/.test(s.slice(j))){out+=FN[lw]+'[';st.push(1);i=s.indexOf('(',j)+1;continue}
-      out+=lw==='pi'?'Pi':(lw==='inf'||lw==='infinity')?'Infinity':w==='e'?'E':w;i=j;continue}
-    const c=s[i];
-    if(c==='('){st.push(0);out+='('}else if(c===')'){out+=st.pop()?']':')'}else out+=c;
-    i++}
-  return out}
-function wfPlot(){
-  const TY=[
-    {k:'plot',l:'اقتران y = f(x)',ph:'sin(x); x^2/4   (افصل بين اقترانين بـ ؛)',a:['-10','10'],b:['',''],al:'x من / إلى',bl:'y من / إلى (فاضي = تلقائي)'},
-    {k:'implicit',l:'معادلة أو متباينة بـ x و y',ph:'x^2+y^2=25     أو     y>x^2',a:['-10','10'],b:['-10','10'],al:'x من / إلى',bl:'y من / إلى'},
-    {k:'param',l:'بارامتري (x(t) , y(t))',ph:'cos(t), sin(2t)',a:['0','6.2832'],b:null,al:'t من / إلى'},
-    {k:'polar',l:'قطبي r(t)',ph:'1+cos(t)',a:['0','6.2832'],b:null,al:'t من / إلى'},
-    {k:'plot3d',l:'ثلاثي الأبعاد z = f(x,y)',ph:'sin(x)*cos(y)',a:['-5','5'],b:['-5','5'],al:'x من / إلى',bl:'y من / إلى'}];
-  let base='',cur=null;
-  try{base=localStorage.getItem('wf_plot_url')||'';if(!base){const t=localStorage.getItem('wf_url')||'';if(t)base=t.split('?')[0].replace(/daftari-test$/,'daftari-plot')}}catch(e){}
-  dlg.textContent='';dlg.hidden=false;
-  const LTR='font-size:16px;direction:ltr;text-align:left',lab=t=>{const d=mk('div','st',t);d.style.cssText='margin:6px 4px 0';return d};
-  const ui=mk('input','cin'),ty=mk('select','cin'),fi=mk('input','cin'),a0=mk('input','cin'),a1=mk('input','cin'),b0=mk('input','cin'),b1=mk('input','cin'),
-    out=mk('div','st'),img=document.createElement('img'),go=mk('button','primary','ارسم'),ins=mk('button','','📌 أدرج الرسمة بالصفحة'),cl=mk('button','danger','إغلاق'),
-    ra=mk('div'),rbx=mk('div'),la=lab(''),lb=lab('');
-  ui.placeholder='https://www.wolframcloud.com/obj/.../daftari-plot';ui.style.cssText=LTR;ui.value=base;
-  TY.forEach((t,i)=>{const o=document.createElement('option');o.value=i;o.textContent=t.l;ty.append(o)});ty.style.cssText='font-size:16px;direction:rtl;text-align:right;font-family:system-ui,-apple-system,"SF Arabic","Noto Sans Arabic",Tahoma,sans-serif;padding:10px 8px;min-height:46px;line-height:1.5';
-  fi.style.cssText=LTR;[a0,a1,b0,b1].forEach(x=>{x.style.cssText=LTR+';flex:1;min-width:0';x.setAttribute('inputmode','decimal')});
-  ra.style.cssText=rbx.style.cssText='display:flex;gap:8px;direction:ltr';ra.append(a0,a1);rbx.append(b0,b1);
-  out.style.cssText='white-space:pre-wrap;direction:rtl;text-align:right;margin:6px 4px;line-height:1.7';
-  img.style.cssText='display:none;max-width:100%;max-height:42vh;margin:6px auto;background:#fff;border-radius:8px;object-fit:contain';ins.style.display='none';
-  const fill=()=>{const t=TY[ty.value];fi.placeholder=t.ph;a0.value=t.a[0];a1.value=t.a[1];la.textContent=t.al;
-    if(t.b){b0.value=t.b[0];b1.value=t.b[1];lb.textContent=t.bl;lb.style.display=rbx.style.display='';rbx.style.display='flex'}else{b0.value=b1.value='';lb.style.display=rbx.style.display='none'}};
-  ty.onchange=fill;fill();
-  const nz=v=>String(v).trim().replace(/[٠-٩]/g,c=>'٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/٫/g,'.');
-  go.onclick=async()=>{
-    const t=TY[ty.value],u=ui.value.trim().split('?')[0];
-    if(!/^https:\/\//.test(u)){out.textContent='الصق رابط API الرسم (اللي آخره daftari-plot)';return}
-    if(!fi.value.trim()){out.textContent='اكتب الاقتران أولاً';return}
-    try{localStorage.setItem('wf_plot_url',u)}catch(e){}
-    const q=new URLSearchParams({type:t.k,f:wfConv(fi.value),a0:nz(a0.value),a1:nz(a1.value),b0:nz(b0.value)||'auto',b1:nz(b1.value)||'auto'});
-    out.textContent='جاري الرسم… (أول مرة ممكن ياخد كم ثانية)';go.disabled=true;ins.style.display='none';
-    const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),40000);
-    try{
-      const r=await fetch(u+'?'+q,{signal:ac.signal}),bl=await r.blob();
-      if(r.ok&&/^image\//.test(bl.type)){cur=bl;if(img._u)URL.revokeObjectURL(img._u);img._u=URL.createObjectURL(bl);img.src=img._u;img.style.display='block';ins.style.display='';out.textContent='✓ تم'}
-      else{img.style.display='none';out.textContent='✗ '+(await bl.text()).slice(0,200)+'\n(الحالة '+r.status+')'}}
-    catch(e){img.style.display='none';out.textContent=(e.name==='AbortError'?'✗ انتهت المهلة':'✗ فشل النداء')+'\nتأكد من الرابط ومن النت، وإن الـ API منشور بصلاحية Public.'}
-    finally{clearTimeout(tm);go.disabled=false}};
-  ins.onclick=()=>{if(!cur)return;dlg.hidden=true;addImg(new File([cur],'wolfram.png',{type:'image/png'}))};
-  cl.onclick=()=>dlg.hidden=true;
-  dlg.append(mk('b','','🐺 رسم Wolfram'),lab('رابط API الرسم:'),ui,lab('نوع الرسمة:'),ty,lab('التعبير:'),fi,la,ra,lb,rbx,go,out,img,ins,cl)}
-/* FullForm من Wolfram ← لاتيكس (لأن TeXForm ما بيشتغل جوا الـ API) */
-function wfTex(src){
-  src=String(src||'').replace(/\s+/g,'');if(!src)return'';
-  let i=0;
-  const parse=()=>{
-    let m=/^-?\d+(\.\d*)?(\*\^-?\d+)?/.exec(src.slice(i));
-    if(m){i+=m[0].length;return{n:m[0].replace('*^','e')}}
-    m=/^[A-Za-z$][A-Za-z0-9$`]*/.exec(src.slice(i));if(!m)throw new Error('parse');
-    i+=m[0].length;const name=m[0];
-    if(src[i]==='['){i++;const a=[];if(src[i]===']'){i++;return{h:name,a}}
-      for(;;){a.push(parse());if(src[i]===','){i++;continue}if(src[i]===']'){i++;break}throw new Error('parse')}
-      return{h:name,a}}
-    return{s:name}};
-  let ast=parse();if(i!==src.length)throw new Error('parse');
-  if(ast.h==='HoldForm'&&ast.a.length===1)ast=ast.a[0];
-  const FN={Sin:'\\sin',Cos:'\\cos',Tan:'\\tan',Cot:'\\cot',Sec:'\\sec',Csc:'\\csc',ArcSin:'\\arcsin',ArcCos:'\\arccos',ArcTan:'\\arctan',ArcCot:'\\operatorname{arccot}',Sinh:'\\sinh',Cosh:'\\cosh',Tanh:'\\tanh',Log:'\\ln',Exp:'\\exp'};
-  const SYM={Pi:'\\pi',E:'e',I:'i',Infinity:'\\infty',Integers:'\\mathbb{Z}',Reals:'\\mathbb{R}',True:'\\text{true}',False:'\\text{false}',Indeterminate:'\\text{undefined}'};
-  const REL={Equal:'=',Unequal:'\\ne',Less:'<',Greater:'>',LessEqual:'\\le',GreaterEqual:'\\ge'};
-  const isNum=n=>n.n!==undefined,val=n=>parseFloat(n.n);
-  const negExp=e=>(isNum(e)&&val(e)<0)||(e.h==='Rational'&&val(e.a[0])<0);
-  const flip=e=>isNum(e)?{n:String(-val(e))}:{h:'Rational',a:[{n:String(-val(e.a[0]))},e.a[1]]};
-  const wrap=s=>'\\left('+s+'\\right)';
-  const T=n=>{
-    if(isNum(n))return n.n;
-    if(n.s!==undefined)return SYM[n.s]||(n.s.length===1?n.s:'\\text{'+n.s+'}');
-    const a=n.a,h=n.h;
-    if(FN[h]&&a.length===1)return FN[h]+wrap(T(a[0]));
-    if(h==='Log'&&a.length===2)return '\\log_{'+T(a[0])+'}'+wrap(T(a[1]));
-    switch(h){
-      case'Plus':{let o=T(a[0]);for(let k=1;k<a.length;k++){const t=T(a[k]);o+=t[0]==='-'?' - '+t.slice(1):' + '+t}return o}
-      case'Times':{let neg=false;const nu=[],de=[];
-        a.forEach(f=>{
-          if(isNum(f)){if(f.n==='-1'){neg=!neg;return}if(val(f)<0){neg=!neg;nu.push({n:f.n.slice(1)})}else nu.push(f);return}
-          if(f.h==='Rational'){let p=val(f.a[0]);const q=f.a[1];if(p<0){neg=!neg;p=-p}if(p!==1)nu.push({n:String(p)});de.push(q);return}
-          if(f.h==='Power'&&negExp(f.a[1])){const e=flip(f.a[1]);de.push(isNum(e)&&val(e)===1?f.a[0]:{h:'Power',a:[f.a[0],e]});return}
-          nu.push(f)});
-        const prod=(l,ng)=>l.map((f,k)=>{let s=f.h==='Plus'&&((l.length>1||ng))?wrap(T(f)):T(f);if(k>0&&/^[0-9.]/.test(s)&&/[0-9.]$/.test(T(l[k-1])))s='\\cdot '+s;return s}).join(' ');
-        const ns=nu.length?prod(nu,neg&&!de.length):'1';
-        return(neg?'-':'')+(de.length?'\\frac{'+ns+'}{'+prod(de)+'}':ns)}
-      case'Rational':{let p=val(a[0]);const q=T(a[1]);return(p<0?'-':'')+'\\frac{'+Math.abs(p)+'}{'+q+'}'}
-      case'Power':{const b=a[0],e=a[1];
-        if(negExp(e))return '\\frac{1}{'+T({h:'Power',a:[b,flip(e)]})+'}';
-        if(isNum(e)&&val(e)===1)return T(b);
-        if(e.h==='Rational'&&val(e.a[0])===1)return val(e.a[1])===2?'\\sqrt{'+T(b)+'}':'\\sqrt['+T(e.a[1])+']{'+T(b)+'}';
-        if(b.s==='E')return 'e^{'+T(e)+'}';
-        if(b.h&&FN[b.h]&&b.a.length===1&&isNum(e))return FN[b.h]+'^{'+T(e)+'}'+wrap(T(b.a[0]));
-        const bs=(b.h&&['Plus','Times','Rational','Power'].includes(b.h))||(isNum(b)&&val(b)<0)||FN[b.h]?wrap(T(b)):T(b);
-        return bs+'^{'+T(e)+'}'}
-      case'Sqrt':return '\\sqrt{'+T(a[0])+'}';
-      case'Abs':return '\\left|'+T(a[0])+'\\right|';
-      case'Floor':return '\\lfloor '+T(a[0])+'\\rfloor';
-      case'Ceiling':return '\\lceil '+T(a[0])+'\\rceil';
-      case'Complex':{const re=val(a[0]),im=val(a[1]);const is=im===1?'i':im===-1?'-i':T(a[1])+'i';return re===0?is:T(a[0])+(is[0]==='-'?' - '+is.slice(1):' + '+is)}
-      case'DirectedInfinity':return !a.length?'\\tilde\\infty':val(a[0])<0?'-\\infty':'\\infty';
-      case'C':return 'c_{'+T(a[0])+'}';
-      case'Element':return T(a[0])+' \\in '+T(a[1]);
-      case'List':return '\\left\\{'+a.map(T).join(', ')+'\\right\\}';
-      case'Or':return a.map(T).join(' \\quad\\lor\\quad ');
-      case'And':return a.every(x=>x.h==='Equal')?a.map(T).join(',\\ '):a.map(T).join(' \\quad\\land\\quad ');
-      case'Not':return '\\lnot '+wrap(T(a[0]));
-      case'Inequality':{let o=T(a[0]);for(let k=1;k+1<a.length;k+=2)o+=' '+(REL[a[k].s]||'?')+' '+T(a[k+1]);return o}
-      case'Piecewise':{const rows=a[0].a.map(r=>T(r.a[0])+' & '+T(r.a[1]));rows.push((a[1]?T(a[1]):'0')+' & \\text{otherwise}');return '\\begin{cases}'+rows.join(' \\\\ ')+'\\end{cases}'}
-    }
-    if(REL[h])return a.map(T).join(' '+REL[h]+' ');
-    return '\\text{'+h+'}'+wrap(a.map(T).join(', '))};
-  return T(ast)}
-
-/* ===== حساب Wolfram Cloud (تجريبي): تكامل، مشتقة، نهاية، حل معادلات. النتيجة بتنعرض بلاتيكس وبتقدر تدرجها بالصفحة ===== */
-function wfCalc(){
-  const OP=[
-    {k:'int',l:'تكامل غير محدد  ∫',ph:'x^2*sin(x)'},
-    {k:'dint',l:'تكامل محدد  ∫ من a إلى b',ph:'x^2*sin(x)',ab:1},
-    {k:'diff',l:'مشتقة',ph:'x^2*sin(x)',n:1},
-    {k:'limit',l:'نهاية',ph:'sin(x)/x',lm:1},
-    {k:'solve',l:'حل معادلة / نظام / متباينة',ph:'x^2-5x+6=0     (نظام: x+y=3 ؛ x-y=1)',vs:1}];
-  let base='',cur='';
-  try{base=localStorage.getItem('wf_calc_url')||'';if(!base){const t=localStorage.getItem('wf_plot_url')||localStorage.getItem('wf_url')||'';if(t)base=t.split('?')[0].replace(/daftari-(plot|test)$/,'daftari-calc')}}catch(e){}
-  dlg.textContent='';dlg.hidden=false;
-  const LTR='font-size:16px;direction:ltr;text-align:left',lab=t=>{const d=mk('div','st',t);d.style.cssText='margin:6px 4px 0';return d};
-  const ui=mk('input','cin'),op=mk('select','cin'),fi=mk('input','cin'),vi=mk('input','cin'),ai=mk('input','cin'),bi=mk('input','cin'),ni=mk('input','cin'),di=mk('select','cin'),
-    out=mk('div','st'),box=mk('div'),go=mk('button','primary','احسب'),ins=mk('button','','📌 أدرج النتيجة بالصفحة'),cp=mk('button','','نسخ كود لاتيكس'),cl=mk('button','danger','إغلاق'),
-    rv=mk('div'),rab=mk('div'),rn=mk('div'),rd=mk('div'),lv=lab('المتغير:'),lab_=lab(''),lN=lab('رتبة المشتقة:'),lD=lab('الاتجاه:');
-  ui.placeholder='https://www.wolframcloud.com/obj/.../daftari-calc';ui.style.cssText=LTR;ui.value=base;
-  OP.forEach((t,i)=>{const o=document.createElement('option');o.value=i;o.textContent=t.l;op.append(o)});op.style.cssText='font-size:16px;direction:rtl;text-align:right;font-family:system-ui,-apple-system,"SF Arabic","Noto Sans Arabic",Tahoma,sans-serif;padding:10px 8px;min-height:46px;line-height:1.5';
-  [['من الجهتين',0],['من اليمين  (+)',1],['من اليسار  (−)',-1]].forEach(([l,v])=>{const o=document.createElement('option');o.value=v;o.textContent=l;di.append(o)});di.style.cssText='font-size:16px;direction:rtl;text-align:right;font-family:system-ui,-apple-system,"SF Arabic","Noto Sans Arabic",Tahoma,sans-serif;padding:10px 8px;min-height:46px;line-height:1.5';
-  fi.style.cssText=vi.style.cssText=ai.style.cssText=bi.style.cssText=ni.style.cssText=LTR;ai.style.flex=bi.style.flex='1';ai.style.minWidth=bi.style.minWidth='0';
-  rab.style.cssText='display:flex;gap:8px;direction:ltr';rab.append(ai,bi);vi.value='x';ni.value='1';ni.setAttribute('inputmode','numeric');
-  out.style.cssText='white-space:pre-wrap;direction:rtl;text-align:right;margin:6px 4px;line-height:1.7';box.style.cssText='margin:4px 0;overflow-x:auto;direction:ltr;text-align:center';
-  ins.style.display=cp.style.display='none';
-  const fill=()=>{const t=OP[op.value];fi.placeholder=t.ph;
-    lv.textContent=t.vs?'المتغيرات (مثلاً x أو x,y):':'المتغير:';
-    lab_.textContent=t.ab?'الحدود  a (من)  و  b (إلى)  — بتقدر تكتب inf أو pi':t.lm?'النهاية عند  (a):  بتقدر تكتب inf أو -inf':'';
-    ai.placeholder=t.ab?'a  مثلاً 0':'a';bi.placeholder='b  مثلاً pi';
-    lab_.style.display=rab.style.display=(t.ab||t.lm)?'':'none';rab.style.display=(t.ab||t.lm)?'flex':'none';bi.style.display=t.ab?'':'none';
-    lN.style.display=ni.style.display=t.n?'':'none';lD.style.display=di.style.display=t.lm?'':'none'};
-  op.onchange=fill;fill();
-  const nz=v=>wfConv(String(v).trim());
-  const show=async tex=>{box.textContent='';try{const M=await loadMJ({}),n=M.tex2svg(tex,{display:true});box.append(n)}catch(e){box.textContent=tex}};
-  go.onclick=async()=>{
-    const t=OP[op.value],u=ui.value.trim().split('?')[0];
-    if(!/^https:\/\//.test(u)){out.textContent='الصق رابط API الحساب (اللي آخره daftari-calc)';return}
-    if(!fi.value.trim()){out.textContent='اكتب التعبير أولاً';return}
-    const V=nz(vi.value).replace(/\s/g,'')||'x',A=nz(ai.value),B=t.ab?nz(bi.value):'';
-    if(t.ab&&(!A||!B)){out.textContent='اكتب حدّي التكامل a و b';return}
-    if(t.lm&&!A){out.textContent='اكتب النقطة اللي بتقترب منها';return}
-    try{localStorage.setItem('wf_calc_url',u)}catch(e){}
-    const N=t.n?(parseInt(nz(ni.value),10)||1):t.lm?parseInt(di.value,10):0;
-    const q=new URLSearchParams({op:t.k,f:wfConv(fi.value),v:V,a:t.ab||t.lm?A:'0',b:B||'0',n:String(Math.max(-1,Math.min(9,N)))});
-    out.textContent='جاري الحساب…';go.disabled=true;ins.style.display=cp.style.display='none';box.textContent='';
-    const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),40000);
-    let tx='',st=0;try{
-      const r=await fetch(u+'?'+q,{signal:ac.signal});st=r.status;tx=await r.text();
-      if(!r.ok){out.textContent='✗ '+tx.slice(0,200);return}
-      if(!tx.trim()){out.textContent='✗ الرد وصل (حالة '+st+') بس فاضي';return}
-      const j=JSON.parse(tx);let tex;
-      const W=s=>{try{return wfTex(s)}catch(e){return '\\text{'+String(s).replace(/[^A-Za-z0-9 ,.+*^-]/g,'')+'}'}};
-      const NN=/^-?[0-9]*\.?[0-9]+(\*\^-?[0-9]+)?$/.test(String(j.n||''))?String(+parseFloat(String(j.n).replace('*^','e')).toPrecision(8)):'';
-      const F=(Array.isArray(j.f)?j.f:[j.f]).map(W).join(',\\ '),A=W(j.a),B2=W(j.b),R=W(j.r);
-      if(j.err){out.textContent='✗ '+({'invalid-input':'الـ API رفض المدخلات','no-result':'ما لقى جواب بصيغة مغلقة (أو أخذ وقت طويل)','internal':'عطل داخلي بالـ API'}[j.err]||j.err);if(j.dbg){const d=document.createElement('div');d.dir='ltr';d.style.cssText='text-align:left;word-break:break-all;margin-top:6px;font:13px/1.5 ui-monospace,Menlo,monospace';d.textContent=String(j.dbg).slice(0,500);out.append(d)}return}
-      if(t.k==='int')tex='\\int '+F+'\\,d'+V+' = '+R+' + C';
-      else if(t.k==='dint')tex='\\int_{'+A+'}^{'+B2+'} '+F+'\\,d'+V+' = '+R+(NN?' \\approx '+NN:'');
-      else if(t.k==='diff')tex=(N>1?'\\frac{d^{'+N+'}}{d'+V+'^{'+N+'}}':'\\frac{d}{d'+V+'}')+'\\left('+F+'\\right) = '+R;
-      else if(t.k==='limit')tex='\\lim_{'+V+' \\to '+A+(N===1?'^{+}':N===-1?'^{-}':'')+'} '+F+' = '+R+(NN?' \\approx '+NN:'');
-      else tex=F+' \\;\\Longrightarrow\\; '+R;
-      cur=tex;out.textContent='✓';await show(tex);ins.style.display=cp.style.display=''}
-    catch(e){out.textContent=e.name==='SyntaxError'?('✗ الرد وصل (حالة '+st+') بس مش بصيغة JSON:\n'+tx.slice(0,300)):((e.name==='AbortError'?'✗ انتهت المهلة':'✗ فشل النداء')+'\nتأكد من الرابط ومن النت، وإن الـ API منشور بصلاحية Public.')}
-    finally{clearTimeout(tm);go.disabled=false}};
-  ins.onclick=()=>{if(!cur||!book)return;const pg=book.pages[curPg],d=pg&&DOM.get(pg.id);if(!d)return;dlg.hidden=true;
-    const pr=d.el.getBoundingClientRect(),vr=view.getBoundingClientRect();texInsert(d,[.06,Math.max(.03,(vr.top+40-pr.top)/pr.width)],'$$'+cur+'$$')};
-  cp.onclick=async()=>{try{await navigator.clipboard.writeText(cur);gs('اننسخ كود لاتيكس ✓')}catch(e){prompt('انسخ الكود:',cur)}};
-  cl.onclick=()=>dlg.hidden=true;
-  dlg.append(mk('b','','🐺 حساب Wolfram'),lab('رابط API الحساب:'),ui,lab('العملية:'),op,lab('التعبير:'),fi,lv,vi,lab_,rab,lN,ni,lD,di,go,out,box,ins,cp,cl)}
 $('moreB').onclick=()=>pick('الدفتر',[
   'هاي الصفحة',
   [(book.pages[curPg]&&book.pages[curPg].bm?'⭐ شيل علامة الصفحة':'☆ علّم الصفحة'),mcl('bmB')],
@@ -3552,9 +3352,8 @@ $('moreB').onclick=()=>pick('الدفتر',[
   ...(window.__PANE?[]:[['◧ تقسيم الشاشة',mcl('splB')]]),
   'أدوات',
   ['🧮 حاسبة ورسم',mcl('calcB')],
-  ['🐺 اختبار Wolfram Cloud',wfTest],
-  ['🐺 رسم Wolfram',wfPlot],
-  ['🐺 حساب Wolfram (تكامل، مشتقة، حل…)',wfCalc],
+  ['🔮 بوابات: اربط مستطيل بصفحة',mcl('ptBtn')],
+  [(window.__pcur&&window.__pcur.on?'✒️ القلم المرئي: شغّال (اضغط للإطفاء)':'✒️ القلم المرئي: مطفي (اضغط للتشغيل)'),()=>{if(window.__pcur)window.__pcur.toggle()}],
   ['📖 دليل التطبيق (شرح كل الأدوات)',()=>{if(window.__guide)window.__guide.open()}],
   ['❓ وضع المساعدة (المس أداة لتعرف شو بتعمل)',()=>{if(window.__guide)window.__guide.help()}],
   ['⚙ إعدادات اللمس ›',()=>pick('إعدادات اللمس',[
@@ -3633,7 +3432,7 @@ function geoPath(g,t,x0,y0,x1,y1,u){
 }
 function rdp(P,e){if(P.length<3)return P;const a=P[0],b=P[P.length-1],dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy)||1e-9;let m=0,k=0;for(let i=1;i<P.length-1;i++){const d=Math.abs(dy*(P[i][0]-a[0])-dx*(P[i][1]-a[1]))/l;if(d>m){m=d;k=i}}if(m<=e)return[a,b];return rdp(P.slice(0,k+1),e).slice(0,-1).concat(rdp(P.slice(k),e))}
 function recog(it){
-  const raw=it.p.map(q=>[q[0],q[1]]);let L=0,x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  const raw=it.p.map(q=>[q[0],q[1]]),PR=(it.p[0]&&typeof it.p[0][2]==='number')?it.p[0][2]:.5;let L=0,x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
   raw.forEach((q,i)=>{if(i)L+=Math.hypot(q[0]-raw[i-1][0],q[1]-raw[i-1][1]);x0=Math.min(x0,q[0]);y0=Math.min(y0,q[1]);x1=Math.max(x1,q[0]);y1=Math.max(y1,q[1])});
   const dg=Math.hypot(x1-x0,y1-y0);
   if(dg<.03||L<.05)return false;
@@ -3643,47 +3442,94 @@ function recog(it){
   P.push(raw[raw.length-1]);
   P=P.map((q,i)=>i===0||i===P.length-1?q:[(P[i-1][0]+2*q[0]+P[i+1][0])/4,(P[i-1][1]+2*q[1]+P[i+1][1])/4]);
   const n=P.length,a=P[0],z=P[n-1],chord=Math.hypot(z[0]-a[0],z[1]-a[1]);
-  const fin=(k,p)=>{it.k=k;it.p=p;delete it.n;delete it.a;return true};
+  const fin=(k,p)=>{it.k=k;it.p=p;if(k!=='s')delete it.n;delete it.a;return true};
   const dseg=(q,u,v)=>{const dx=v[0]-u[0],dy=v[1]-u[1],l2=dx*dx+dy*dy||1e-12;let t=((q[0]-u[0])*dx+(q[1]-u[1])*dy)/l2;t=Math.max(0,Math.min(1,t));return Math.hypot(q[0]-u[0]-t*dx,q[1]-u[1]-t*dy)};
   const ang=(p,q,r)=>{let t=Math.abs(Math.atan2(r[1]-q[1],r[0]-q[0])-Math.atan2(q[1]-p[1],q[0]-p[0]));if(t>Math.PI)t=2*Math.PI-t;return t*180/Math.PI};
+  /* v13.35: تقاطع ذاتي (حرف «لا»، حرف e، خربشة...) ما بنحوّله لشكل، ونجمة خماسية (متقاطعة أو مفرّغة) بتتحوّل لنجمة منتظمة */
+  const segX=(p,q,r,t)=>{const o=(a,b,c)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);const d1=o(p,q,r),d2=o(p,q,t),d3=o(r,t,p),d4=o(r,t,q);return d1*d2<0&&d3*d4<0};
+  const selfX=()=>{for(let i=0;i<n-1;i++)for(let j=i+8;j<n-1;j++)if(segX(P[i],P[i+1],P[j],P[j+1]))return true;return false};
+  const starFit=V0=>{let V=V0.map(q=>[q[0],q[1]]);{const D=dg,W=[];V.forEach(v=>{const l=W[W.length-1];if(l&&Math.hypot(v[0]-l[0],v[1]-l[1])<.12*D){l[0]=(l[0]+v[0])/2;l[1]=(l[1]+v[1])/2}else W.push(v)});while(W.length>2&&Math.hypot(W[0][0]-W[W.length-1][0],W[0][1]-W[W.length-1][1])<.12*D){const l=W.pop();W[0][0]=(W[0][0]+l[0])/2;W[0][1]=(W[0][1]+l[1])/2}V=W}const k=V.length;if(k!==5&&k!==10)return null;let cx=0,cy=0;V.forEach(q=>{cx+=q[0];cy+=q[1]});cx/=k;cy/=k;
+    const r=V.map(q=>Math.hypot(q[0]-cx,q[1]-cy)),an=V.map(q=>Math.atan2(q[1]-cy,q[0]-cx)),st=[];
+    for(let i=0;i<k;i++){let d=an[(i+1)%k]-an[i];while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;st.push(d)}
+    const dir=st.reduce((x,v)=>x+v,0)>0?1:-1,want=(k===5?144:36)*Math.PI/180,mean=a=>a.reduce((x,v)=>x+v,0)/a.length;
+    if(st.some(d=>Math.abs(d*dir-want)>(k===5?.5:.28)))return null;
+    const step=k===5?4*Math.PI/5:Math.PI/5;let sx=0,sy=0;for(let i=0;i<k;i++){const t=an[i]-i*dir*step;sx+=Math.cos(t);sy+=Math.sin(t)}const t0=Math.atan2(sy,sx),out=[];
+    if(k===5){const m=mean(r);if(r.some(v=>Math.abs(v-m)>.3*m))return null;for(let i=0;i<5;i++){const t=t0+i*dir*step;out.push([cx+m*Math.cos(t),cy+m*Math.sin(t)])}return out}
+    const ev=r.filter((v,i)=>i%2===0),od=r.filter((v,i)=>i%2===1),me=mean(ev),mo=mean(od),R1=Math.max(me,mo),R2=Math.min(me,mo),ro=me>=mo?0:1;
+    if(R2/R1<.3||R2/R1>.78||ev.some(v=>Math.abs(v-me)>.3*me)||od.some(v=>Math.abs(v-mo)>.3*mo))return null;
+    for(let i=0;i<10;i++){const t=t0+i*dir*step,rr=(i%2===ro)?R1:R2;out.push([cx+rr*Math.cos(t),cy+rr*Math.sin(t)])}return out};
   /* v13.31: زاوية (خطين متصلين) وجذر تربيعي: شكل مفتوح بزوايا حادة، بيتحوّل لخطوط مستقيمة (بنفس نقاط 's' فبيتحرك ويدور متل القوس) */
-  const dens=V=>{const o=[],pr=raw[0][2],mk=(x,y)=>{const q=[x,y];if(pr!==undefined)q.push(pr);return q};for(let i=0;i<V.length-1;i++){const u=V[i],v=V[i+1],l=Math.hypot(v[0]-u[0],v[1]-u[1]),m=Math.max(1,Math.ceil(l/.004));for(let j=0;j<m;j++){const t=j/m;o.push(mk(u[0]+(v[0]-u[0])*t,u[1]+(v[1]-u[1])*t))}}o.push(mk(V[V.length-1][0],V[V.length-1][1]));return o};
-  const openPoly=()=>{
-    const V=rdp(P,.045*dg).map(q=>[q[0],q[1]]),n=V.length,ln=(u,v)=>Math.hypot(v[0]-u[0],v[1]-u[1]);
-    if(n===3){const l0=ln(V[0],V[1]),l1=ln(V[1],V[2]),tn=ang(V[0],V[1],V[2]);
-      if(l0<.18*dg||l1<.18*dg||tn<25||tn>155)return null;
-      const A=V[0],B=V[1],C=V[2];
-      /* تعديل الأفقي/العمودي لأول ضلع، وبعدين لو الزاوية قريبة من 90° بنخليها قائمة */
-      let dx=B[0]-A[0],dy=B[1]-A[1],t=Math.abs(Math.atan2(dy,dx))*180/Math.PI;
-      if(t<6||t>174)B[1]=A[1];else if(Math.abs(t-90)<6)B[0]=A[0];
-      if(Math.abs(tn-90)<8){const ux=(B[0]-A[0])/ln(A,B),uy=(B[1]-A[1])/ln(A,B),cr=ux*(C[1]-B[1])-uy*(C[0]-B[0]),sg=cr>=0?1:-1;C[0]=B[0]-sg*uy*l1;C[1]=B[1]+sg*ux*l1}
-      else{dx=C[0]-B[0];dy=C[1]-B[1];t=Math.abs(Math.atan2(dy,dx))*180/Math.PI;if(t<6||t>174)C[1]=B[1];else if(Math.abs(t-90)<6)C[0]=B[0]}
-      return dens([A,B,C])}
-    if(n===4||n===5){const o=n-4,S=V[o],B=V[o+1],T=V[o+2],E=V[o+3],up=ln(B,T),dn=ln(S,B),bar=E[0]-T[0];
-      if(bar<.2*dg||Math.abs(E[1]-T[1])>.2*bar)return null;
-      if(!(T[1]<B[1]&&T[0]>B[0]&&(B[1]-T[1])>.8*(T[0]-B[0])))return null;
-      if(!(B[1]>S[1]&&dn<.7*up&&dn>.04*dg))return null;
-      if(o&&!(V[1][0]>V[0][0]&&V[1][1]<=V[0][1]&&ln(V[0],V[1])<.5*up))return null;
-      const W=V.map(q=>[q[0],q[1]]);W[W.length-1][1]=T[1];return dens(W)}
+  const dens=V=>{const o=[],pr=PR,mk=(x,y)=>[x,y,pr];for(let i=0;i<V.length-1;i++){const u=V[i],v=V[i+1],l=Math.hypot(v[0]-u[0],v[1]-u[1]),m=Math.max(1,Math.ceil(l/.004));for(let j=0;j<m;j++){const t=j/m;o.push(mk(u[0]+(v[0]-u[0])*t,u[1]+(v[1]-u[1])*t))}}o.push(mk(V[V.length-1][0],V[V.length-1][1]));return o};
+  const openPoly=cross=>{
+    const m=P.length;if(m<10)return null;
+    /* ملاءمة خط منكسر بـk ضلع (برمجة ديناميكية): الأخطاء بتنقاس بالمسافة عن الضلع */
+    const cm=[];for(let i=0;i<m;i++){cm.push(new Float64Array(m));for(let j=i+2;j<m;j++){let q=0;for(let t=i+1;t<j;t++){const d=dseg(P[t],P[i],P[j]);q+=d*d}cm[i][j]=q}}
+    const fit=K=>{let prev=new Float64Array(m).fill(1e18);prev[0]=0;const bk=[];
+      for(let k=1;k<=K;k++){const cur=new Float64Array(m).fill(1e18),bp=new Int16Array(m).fill(-1);
+        for(let j=1;j<m;j++)for(let i=0;i<j;i++){if(prev[i]>=1e17)continue;const c=prev[i]+(j-i<2?0:cm[i][j]);if(c<cur[j]){cur[j]=c;bp[j]=i}}
+        bk.push(bp);prev=cur}
+      const ix=[m-1];for(let k=K-1;k>=0;k--)ix.unshift(bk[k][ix[0]]);
+      return{ix,e:Math.sqrt(prev[m-1]/m)/dg}};
+    /* خط مناسب لنقاط بين فهرسين (بدون هامش جنب الزوايا المدوّرة) */
+    const line=(i,j,mi,mj)=>{const a0=i+mi,b0=j-mj;let n=0,cx=0,cy=0;for(let t=a0;t<=b0;t++){cx+=P[t][0];cy+=P[t][1];n++}if(n<2)return null;cx/=n;cy/=n;let sxx=0,syy=0,sxy=0;for(let t=a0;t<=b0;t++){const u=P[t][0]-cx,v=P[t][1]-cy;sxx+=u*u;syy+=v*v;sxy+=u*v}const th=.5*Math.atan2(2*sxy,sxx-syy);return{cx,cy,ux:Math.cos(th),uy:Math.sin(th)}};
+    const verts=ix=>{const K=ix.length-1,L=[];for(let k=0;k<K;k++){const g=ix[k+1]-ix[k],mg=Math.max(1,Math.floor(.2*g));L.push(line(ix[k],ix[k+1],k?mg:0,k<K-1?mg:0))}
+      if(L.some(x=>!x))return null;
+      const proj=(q,l)=>{const t=(q[0]-l.cx)*l.ux+(q[1]-l.cy)*l.uy;return[l.cx+l.ux*t,l.cy+l.uy*t]};
+      const V=[proj(P[0],L[0])];
+      for(let k=1;k<K;k++){const p=L[k-1],q=L[k],cr=p.ux*q.uy-p.uy*q.ux,s=P[ix[k]];let v=s;
+        if(Math.abs(cr)>.2){const t=((q.cx-p.cx)*q.uy-(q.cy-p.cy)*q.ux)/cr,x=[p.cx+p.ux*t,p.cy+p.uy*t];if(Math.hypot(x[0]-s[0],x[1]-s[1])<.15*dg)v=x}
+        V.push([v[0],v[1]])}
+      V.push(proj(P[m-1],L[K-1]));return V};
+    const ln=(u,v)=>Math.hypot(v[0]-u[0],v[1]-u[1]);
+    /* خط بيقطع حاله (حرف «لا» مثلاً): نفس الرسمة بخطوط مستقيمة وزوايا حادة وبيضل التقاطع */
+    if(cross){for(const K of[3,4,5]){const F=fit(K);if(F.e>.03)continue;const V=verts(F.ix);if(!V)continue;
+        let bad=false;for(let i=0;i<K;i++){const l=ln(V[i],V[i+1]);if(l<(i===0||i===K-1?.06:.12)*dg)bad=true}if(bad)continue;
+        for(let i=0;i<K;i++){const dx=V[i+1][0]-V[i][0],dy=V[i+1][1]-V[i][1],t=Math.abs(Math.atan2(dy,dx))*180/Math.PI;if(t<6||t>174)V[i+1][1]=V[i][1];else if(Math.abs(t-90)<6)V[i+1][0]=V[i][0]}
+        return{kind:'cross',e:F.e,pts:dens(V)}}return null}
+    /* جذر: (تيك) + نزول + صعود + خط أفقي */
+    for(const K of[4,3]){const F=fit(K);if(F.e>.035)continue;const V=verts(F.ix);if(!V)continue;const o=K-3,S=V[o],B=V[o+1],T=V[o+2],E=V[o+3],up=ln(B,T),dn=ln(S,B),bar=E[0]-T[0];
+      if(bar<.2*dg||Math.abs(E[1]-T[1])>.5*bar)continue;
+      if(!(T[1]<B[1]&&(B[1]-T[1])>.8*Math.abs(T[0]-B[0])))continue;
+      if(!(B[1]>S[1]&&dn<.7*up&&dn>.04*dg))continue;
+      if(o&&!(V[1][0]>V[0][0]&&V[1][1]<=V[0][1]&&ln(V[0],V[1])<.5*up))continue;
+      if(!(T[1]<=S[1]))continue;V[V.length-1][1]=T[1];return{kind:'root',e:F.e,pts:dens(V)}}
+    /* زاوية: ضلعين */
+    {const F=fit(2);if(F.e<.03){const V=verts(F.ix);if(V){const[A,B,C]=V,l0=ln(A,B),l1=ln(B,C),tn=ang(A,B,C);
+      if(l0>=.18*dg&&l1>=.18*dg&&tn>=30&&tn<=155){
+        let dx=B[0]-A[0],dy=B[1]-A[1],t=Math.abs(Math.atan2(dy,dx))*180/Math.PI;
+        if(t<6||t>174)B[1]=A[1];else if(Math.abs(t-90)<6)B[0]=A[0];
+        if(Math.abs(tn-90)<10){const ux=(B[0]-A[0])/ln(A,B),uy=(B[1]-A[1])/ln(A,B),cr=ux*(C[1]-B[1])-uy*(C[0]-B[0]),sg=cr>=0?1:-1;C[0]=B[0]-sg*uy*l1;C[1]=B[1]+sg*ux*l1}
+        else{dx=C[0]-B[0];dy=C[1]-B[1];t=Math.abs(Math.atan2(dy,dx))*180/Math.PI;if(t<6||t>174)C[1]=B[1];else if(Math.abs(t-90)<6)C[0]=B[0]}
+        return{kind:'angle',e:F.e,pts:dens([A,B,C])}}}}}
+    /* v13.37: أي شكل من خطوط مستقيمة (Z، N، W، M، درج، موجة مربعة...): 3-6 أضلاع، كل زاوية حادة (≥38°) والخطأ صغير؛ المنحنيات الناعمة بتطلع برا لأن زواياها صغيرة */
+    for(const K of[3,4,5,6]){const F=fit(K);if(F.e>.013)continue;const V=verts(F.ix);if(!V)continue;
+      /* لازم تقريباً كل النقاط (≥94%) قريبة من الأضلاع المستقيمة؛ المنحنيات الناعمة (S، موجة...) بتطلع برا */
+      {let ok=0;const tol=.01*dg;P.forEach(q=>{let d=1e9;for(let i=0;i<K;i++)d=Math.min(d,dseg(q,V[i],V[i+1]));if(d<tol)ok++});if(ok<.94*P.length)continue}
+      let bad=false;for(let i=0;i<K;i++){const l=ln(V[i],V[i+1]);if(l<(i===0||i===K-1?.07:.1)*dg)bad=true;if(i>0&&ang(V[i-1],V[i],V[i+1])<38)bad=true}
+      if(bad)continue;
+      for(let i=0;i<K;i++){const dx=V[i+1][0]-V[i][0],dy=V[i+1][1]-V[i][1],t=Math.abs(Math.atan2(dy,dx))*180/Math.PI;if(t<7||t>173)V[i+1][1]=V[i][1];else if(Math.abs(t-90)<7)V[i+1][0]=V[i][0]}
+      return{kind:'poly',e:F.e,pts:dens(V)}}
     return null};
   /* ١) خط مستقيم: شكل مفتوح وانحرافه عن الوتر صغير */
   if(chord>.35*dg){
+    if(selfX()){const X=openPoly(true);return X?fin('s',X.pts):false}
     let dev=0;P.forEach(q=>{dev=Math.max(dev,dseg(q,a,z))});
     if(dev<Math.max(.07*chord,.006)){const e=[z[0],z[1]],dx=z[0]-a[0],dy=z[1]-a[1],t=Math.abs(Math.atan2(dy,dx))*180/Math.PI;
       if(t<6||t>174)e[1]=a[1];else if(Math.abs(t-90)<6)e[0]=a[0];
       return fin('l',[[a[0],a[1]],e])}
+    const PC=openPoly();if(PC&&PC.kind==='root')return fin('s',PC.pts);
     /* قوس: ملاءمة دائرة للشكل المفتوح */
     {let m0=0,m1=0;P.forEach(q=>{m0+=q[0];m1+=q[1]});m0/=n;m1/=n;let Suu=0,Suv=0,Svv=0,Su3=0,Sv3=0,Suvv=0,Svuu=0;
       P.forEach(q=>{const u=q[0]-m0,v=q[1]-m1;Suu+=u*u;Suv+=u*v;Svv+=v*v;Su3+=u*u*u;Sv3+=v*v*v;Suvv+=u*v*v;Svuu+=v*u*u});
       const det=Suu*Svv-Suv*Suv,r1=.5*(Su3+Suvv),r2=.5*(Sv3+Svuu);
       if(Math.abs(det)>1e-12){const uc=(r1*Svv-r2*Suv)/det,vc=(Suu*r2-Suv*r1)/det,cx=m0+uc,cy=m1+vc,R=Math.sqrt(uc*uc+vc*vc+(Suu+Svv)/n);
         let er=0;P.forEach(q=>{er+=Math.abs(Math.hypot(q[0]-cx,q[1]-cy)-R)});er/=n*R;
-        if(er<.05&&R<3*dg&&R>.02){let sw=0,pa=Math.atan2(P[0][1]-cy,P[0][0]-cx);const a0=pa;
+        if(er<.05&&R<3*dg&&R>.02&&!(PC&&PC.e<er*R/dg*.8)){let sw=0,pa=Math.atan2(P[0][1]-cy,P[0][0]-cx);const a0=pa;
           for(let i=1;i<n;i++){const t=Math.atan2(P[i][1]-cy,P[i][0]-cx);let d=t-pa;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;sw+=d;pa=t}
-          if(Math.abs(sw)>.5&&Math.abs(sw)<5.9){const M=Math.max(16,Math.round(Math.abs(sw)*14)),pr=raw[0][2],out=[];
+          if(Math.abs(sw)>.5&&Math.abs(sw)<5.9){const M=Math.max(16,Math.round(Math.abs(sw)*14)),pr=PR,out=[];
             for(let i=0;i<=M;i++){const t=a0+sw*i/M;const q=[cx+R*Math.cos(t),cy+R*Math.sin(t)];if(pr!==undefined)q.push(pr);out.push(q)}
             return fin('s',out)}}}}
-    {const op=openPoly();if(op)return fin('s',op)}
+    if(PC)return fin('s',PC.pts);
     return false}
   /* ٢) شكل مغلق: نبحث عن الزوايا */
   let mi=0,m=0;P.forEach((q,i)=>{const d=Math.hypot(q[0]-a[0],q[1]-a[1]);if(d>m){m=d;mi=i}});
@@ -3696,6 +3542,7 @@ function recog(it){
   const tn=i=>ang(V[(i+V.length-1)%V.length],V[i],V[(i+1)%V.length]);
   for(let ch=1;ch&&V.length>3;){ch=0;let w=-1,wv=1e9;for(let i=0;i<V.length;i++){const t=tn(i),s=Math.hypot(V[(i+1)%V.length][0]-V[i][0],V[(i+1)%V.length][1]-V[i][1])<.06*per()?t-40:t;if(s<28&&s<wv){wv=s;w=i}}if(w>=0){V.splice(w,1);ch=1}}
   const k=V.length;
+  {const S=starFit(V);if(S)return fin('q',S)}
   /* قياس خطأ المطابقة لكل مرشّح */
   const pe=k>=3?P.reduce((s,q)=>{let d=1e9;for(let i=0;i<k;i++)d=Math.min(d,dseg(q,V[i],V[(i+1)%k]));return s+d},0)/n/dg:1;
   /* قطع ناقص: محاور من العزوم (يدعم المائل) */
@@ -4610,8 +4457,7 @@ addEventListener('message',e=>{const m=e.data;if(m&&m.nbLog&&book&&Array.isArray
   if(m&&m.nbReady){for(const d of DOM.values()){if(d.fr&&d.fr.contentWindow===e.source){d.rdy=1;if(d.rdyCb){const f=d.rdyCb;d.rdyCb=null;f()}break}}return}
   if(!m||!m.nbLive||!book||(INKD&&Date.now()-LKT<2500))return;for(const d of DOM.values()){if(d.fr&&d.fr.contentWindow===e.source){const ar=Math.min(8,Math.max(1.414,m.h/900));if(ar>d.pg.ar*1.04&&(d.arN=(d.arN||0)+1)<=3){d.pg.ar=ar;fit(d);save()}break}}});
 
-/* ===== ZIP بدون ضغط (لتنزيل عدة صور بملف واحد) ===== */
-function zipStore(fs){const enc=new TextEncoder(),tb=zipStore.T||(zipStore.T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})());
+/* ===== ZIP بدون ضغط (لتنزيل عدة صور بملف واحد) ===== */function zipStore(fs){const enc=new TextEncoder(),tb=zipStore.T||(zipStore.T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})());
   const crc=u=>{let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=tb[(c^u[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
   const parts=[],cen=[];let off=0;const d=new Date(),dt=((d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1))&0xFFFF,dd=(((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate())&0xFFFF;
   fs.forEach(f=>{const nm=enc.encode(f.name),c=crc(f.data),sz=f.data.length;
@@ -4699,123 +4545,6 @@ function shareDlg(pre){
 $('shB').onclick=()=>shareDlg();
 (function(){const st=document.createElement('style');st.textContent='.pgc.sel{border-color:var(--accent,#2f5bea)!important;background:color-mix(in srgb,var(--accent,#2f5bea) 16%,transparent)}.pgc.sel:after{content:"✓";position:absolute;top:4px;inset-inline-start:4px;width:24px;height:24px;border-radius:50%;background:var(--accent,#2f5bea);color:#fff;font-size:15px;line-height:24px;font-weight:700}';document.head.append(st)})();
 
-/* ===== صندوق HTML (v13.17): الـHTML جوّا صفحة عادية بحجم بتتحكم فيه، مش صفحة كاملة =====
-   العنصر: {k:'i', src:لقطة طويلة للمستند كله بعرض hw, hb:مفتاح الـHTML بالـIndexedDB, hw:عرض التصميم px (900),
-            hh:طول المستند px, hy:مكان التمرير px, hl:سجل التفاعلات, x,y,w,h}
-   - بالكتابة: بيترسم من اللقطة (hbDraw): الصندوق نافذة حجمها (hw × hw·h/w) على المستند بدءاً من hy، فتكبيره/تصغيره بيغيّر النافذة بدون ما يشوّه.
-   - بأداة 👆 تفاعل: iframe حي فوق الصندوق (hbLive، بيتنادى من gLive)، بتمرّر جواه وبتكبس أزراره. تفاعلاتك بتنحفظ بـhl وبتنعاد لما يفتح.
-   - لما ترجع للكتابة: بتتاخد لقطة جديدة للحالة الحالية ومكان التمرير (hbApply) عشان اللي بتشوفه هو آخر حالة.
-   - الاستيراد/السجل/اللقطة بيستخدموا نفس liveInner/liveDoc/htSlice تبع الصفحة الحيّة (جزء 23).
-   - (v13.19) importHtmlBox(f,tg,opt) بياخد opt={width,height,at:[x,y],quiet} وبيرجّع العنصر (أو null)، وبيناديه جسر NB.page.insertLive({box:true}) من جزء 24.
-   - (v13.19) بأداة 👆 بيطلع فوق كل صندوق زرّين: ↺ رجّع الصندوق لحالته الأصلية (hbReset)، و⧉ كرّر الصندوق (hbDup). */
-function hbBlank(W,H){const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,H);g.fillStyle='#9aa4b2';g.font='bold '+Math.round(W/9)+'px sans-serif';g.textAlign='center';g.fillText('HTML',W/2,H/2);const u=c.toDataURL('image/png');relCv(c);return u}
-function hbDraw(g,it,m,cw){
-  const hw=it.hw||900,k=m.naturalWidth/hw,vh=hw*it.h/it.w,sy=Math.max(0,it.hy||0)*k,sh=vh*k,av=m.naturalHeight-sy,X=it.x*cw,Y=it.y*cw,Wd=it.w*cw,Hd=it.h*cw;
-  g.save();if(it.rot){g.translate(X+Wd/2,Y+Hd/2);g.rotate(it.rot);g.translate(-Wd/2,-Hd/2)}else g.translate(X,Y);
-  g.fillStyle='#fff';g.fillRect(0,0,Wd,Hd);
-  if(av>0){const h2=Math.min(sh,av);g.drawImage(m,0,sy,m.naturalWidth,h2,0,0,Wd,Hd*h2/sh)}
-  g.strokeStyle='rgba(0,0,0,.2)';g.lineWidth=Math.max(1,cw/700);g.strokeRect(0,0,Wd,Hd);g.restore();return true}
-function hbY(pg,h){try{const d=DOM.get(pg.id),r=d.el.getBoundingClientRect(),vr=view.getBoundingClientRect(),y=(vr.top-r.top)/r.width+.04;return Math.max(.04,Math.min(y,pg.ar-h-.02))}catch(e){return .06}}
-/* لقطة طويلة للمستند كله بعرض W (بيستخدمها الاستيراد وزر الرجوع للأصل) */
-/* V: ارتفاع نافذة القياس. لازم يساوي ارتفاع نافذة الإطار الحي (وإلا مستند بـ min-height:100vh أو بتوسيط عامودي بيطلع بالصورة بمكان غير مكانه بأداة 👆). عند الاستيراد 800 (بينتج نافذة الصندوق ~800)، وعند الرجوع للأصل ارتفاع نافذة الصندوق الحالي */
-async function hbRender(txt,W,V){const fr=document.createElement('iframe');
-  try{fr.setAttribute('sandbox','allow-same-origin');fr.style.cssText='position:fixed;left:-12000px;top:0;width:'+W+'px;height:'+Math.max(200,Math.round(V||800))+'px;border:0;background:#fff';document.body.append(fr);
-    await new Promise(r=>{fr.onload=r;fr.srcdoc=txt});await new Promise(r=>setTimeout(r,400));
-    const dd=fr.contentDocument,total=Math.min(16000,Math.max(dd.documentElement.scrollHeight,dd.body?dd.body.scrollHeight:0,200));
-    let u;try{u=(await htSlice(htXml(txt,W,total),W,total,0,total,Math.min(1.6,Math.sqrt(8e6/(W*total))))).u}catch(er){u=hbBlank(W,Math.min(total,900))}
-    return{u,total}}
-  finally{fr.remove()}}
-async function importHtmlBox(f,tg,opt){
-  opt=opt||{};let res=null;
-  if(importHtml.busy){gs('في استيراد شغّال، استنى شوي');return null}
-  if(f.size>8e6){gs('الملف كبير كثير (أكثر من 8 ميغا)');return null}
-  importHtml.busy=1;
-  try{
-    gs('عم أجهّز الصندوق...');const txt=await f.text();if(!txt.trim())throw new Error('الملف فاضي');
-    const W=900,{u,total}=await hbRender(txt,W);
-    const key=uid()+uid();await dbq('put',key,txt);
-    const w=opt.width!=null?Math.max(.05,Math.min(1,+opt.width||.9)):.9,
-      h=opt.height!=null?Math.max(.05,Math.min(1.5,+opt.height||.3)):+(w*Math.min(1,Math.max(.3,total/W))).toFixed(4),
-      it={k:'i',src:u,x:+((1-w)/2).toFixed(4),y:.06,w,h,hb:key,hw:W,hh:total,hy:0},nm=f.name.replace(/\.html?$/i,'');
-    if(tg==='new'||!book){const pg=newPage({tpl:'blank'});pg.items.push(it);const b={id:uid(),title:nm,ts:Date.now(),folderId:cwd,pages:[pg]};S.books.push(b);save();open(b)}
-    else{let pg=book.pages[curPg];
-      if(!pg||pg.cvr||pg.idx||pg.live){pg=newPage({tpl:'blank'});const at=covClamp(curPg+1);book.pages.splice(at,0,pg);renderBook();curPg=at;upd()}
-      it.y=hbY(pg,it.h);{const vp=visPlace(pg,it.w,it.h);if(vp){it.x=vp[0];it.y=Math.max(.02,vp[1])}}
-      if(Array.isArray(opt.at)&&opt.at.length>=2){it.x=Math.max(0,Math.min(1-w,+opt.at[0]-w/2));it.y=Math.max(.02,Math.min(+opt.at[1]-h/2,Math.max(.02,pg.ar-h-.02)))}
-      pg.items.push(it);undo.push({pg,add:it});redo=[];rd(pg);
-      if(!opt.quiet){document.querySelector('[data-t=lasso]').click();setLs({pg,items:[it]})}save()}
-    res=it;gs('تم ✓ صندوق HTML: حرّكه وكبّره بأداة التحديد، واختر 👆 تفاعل لتشغيله والتمرير جواه')}
-  catch(er){gs('تعذّر إنشاء الصندوق: '+(er&&er.message||er))}
-  finally{importHtml.busy=0}
-  return res}
-/* إطار حي فوق كل صندوق بالصفحة (أداة 👆 بس). بيتنادى من بداية gLive */
-function hbLive(d,ask){
-  if(!d.hbm)d.hbm=new Map();
-  const want=tool==='tap'&&d.vis&&d.g?d.pg.items.filter(i=>i.k==='i'&&i.hb):[];
-  hbInk(d,want);
-  d.hbm.forEach((o,it)=>{if(want.includes(it)){o.closing=0;o.fr.style.pointerEvents='auto'}else hbClose(d,it,o)});
-  const B=d.el.clientWidth||baseW();
-  want.forEach(it=>{let o=d.hbm.get(it);
-    if(!o){const fr=document.createElement('iframe');fr.setAttribute('sandbox','allow-scripts allow-forms allow-popups allow-modals allow-downloads');fr.title='hbox';
-      fr.style.cssText='position:absolute;border:0;background:#fff;z-index:6;max-width:none';
-      o={fr,it,rn:0,rdy:0,dirty:0,scr:0,t0:0};d.hbm.set(it,o);d.el.append(fr);o.bt=hbBtns(d,it,o);
-      dbq('get',it.hb).then(t=>{if(d.hbm.get(it)===o)fr.srcdoc=t?liveDoc(t,it.hl,o.rn):'<p style="font:16px sans-serif;padding:20px">⚠ ما لقيت محتوى الصندوق</p>'})}
-    const Wd=it.hw||900,Hd=Wd*it.h/it.w,f=it.w*B/Wd,cx=(it.x+it.w/2)*B,cy=(it.y+it.h/2)*B,st=o.fr.style;
-    st.width=Wd+'px';st.height=Hd+'px';st.left=(cx-Wd/2)+'px';st.top=(cy-Hd/2)+'px';st.transform=(it.rot?'rotate('+it.rot+'rad) ':'')+'scale('+f+')';
-    /* مكان الزرّين: الزاوية العليا اليمنى جوّا الصندوق (مع الدوران) */
-    if(o.bt){const dx=it.w*B/2-40,dy=-it.h*B/2+20,c=Math.cos(it.rot||0),s=Math.sin(it.rot||0);o.bt.style.left=(cx+dx*c-dy*s)+'px';o.bt.style.top=(cy+dx*s+dy*c)+'px';o.bt.style.display=o.closing?'none':'flex'}})}
-/* v13.23: الحبر والنصوص والصور اللي انرسمت فوق الصندوق (بعده بالترتيب) لازم تبين فوق الإطار الحي بأداة 👆 (الإطار بيغطي الصفحة)، متل الصفحة الحيّة. بنرسمها على طبقة شفافة فوق الإطار وبتنشال لما نطلع من أداة 👆 */
-function hbInk(d,want){const pg=d.pg;let lo=1e9;want.forEach(b=>{const i=pg.items.indexOf(b);if(i>=0&&i<lo)lo=i});
-  const above=want.length?pg.items.filter((it,i)=>i>lo&&!it.hb):[];
-  if(!above.length){if(d.hbk){d.hbk.remove();d.hbk=null}return}
-  let k=d.hbk;if(!k){k=d.hbk=document.createElement('canvas');k.className='hbk';k.style.cssText='position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:7';d.el.append(k)}
-  if(k.width!==d.cv.width||k.height!==d.cv.height){k.width=d.cv.width;k.height=d.cv.height}
-  drawPage.lv=1;try{drawPage(k.getContext('2d'),Object.assign({},pg,{live:true,bg:null,tpl:'blank',items:above}),k.width)}catch(e){}finally{drawPage.lv=0}}
-/* زرّين فوق الصندوق بأداة 👆: ↺ رجّع لحالته الأصلية، ⧉ كرّر */
-function hbBtns(d,it,o){const w=document.createElement('div');
-  w.style.cssText='position:absolute;z-index:8;display:flex;gap:6px;transform:translate(-50%,-50%);direction:ltr';
-  const mkb=(tx,ti,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=tx;b.title=ti;
-    b.style.cssText='width:34px;height:34px;border-radius:50%;border:1px solid rgba(0,0,0,.25);background:rgba(255,255,255,.92);font-size:18px;line-height:1;padding:0;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.25)';
-    ['pointerdown','pointerup','touchstart','mousedown'].forEach(ev=>b.addEventListener(ev,e=>e.stopPropagation()));
-    b.onclick=e=>{e.stopPropagation();e.preventDefault();fn()};return b};
-  w.append(mkb('↺','رجّع الصندوق لحالته الأصلية',()=>pick('رجّع الصندوق لأصله؟ (بيمسح تفاعلاتك ومكان التمرير جواه)',[['↺ أيوا، رجّعه',()=>hbReset(d,it,o)]])),
-    mkb('⧉','كرّر الصندوق',()=>hbDup(d,it,o)));
-  d.el.append(w);return w}
-/* رجّع الصندوق للحالة الأصلية: لقطة جديدة من الـHTML المحفوظ، وبيمسح سجل التفاعلات ومكان التمرير */
-async function hbReset(d,it,o){
-  try{const txt=await dbq('get',it.hb);if(!txt){gs('ما لقيت الـHTML الأصلي للصندوق');return}
-    gs('عم برجّع الصندوق...');const r=await hbRender(txt,it.hw||900,(it.hw||900)*it.h/it.w);
-    it.src=r.u;it.hh=r.total;it.hy=0;delete it.hl;IT.delete(it);
-    if(o&&d.hbm&&d.hbm.get(it)===o){o.dirty=0;o.scr=0;o.rdy=0;o.rn=(o.rn||0)+1;o.fr.srcdoc=liveDoc(txt,[],o.rn)}
-    save();rd(d.pg);gs('رجع الصندوق لحالته الأصلية ✓')}
-  catch(e){gs('تعذّر الرجوع للأصل: '+(e&&e.message||e))}}
-/* كرّر الصندوق: نسخة بنفس الـHTML وبالحالة الحالية (مكان التمرير والتفاعلات). بتتحدد النسخة وبتتحوّل لأداة التحديد عشان تحرّكها فوراً */
-async function hbDup(d,it,o){const pg=d.pg;
-  if(o&&o.rdy&&(o.dirty||o.scr)){try{await hbApply(d,o)}catch(e){}}
-  const c=JSON.parse(JSON.stringify(it));
-  c.x=Math.max(0,Math.min(1-c.w,it.x+.04));c.y=Math.max(.02,Math.min(it.y+.04,Math.max(.02,pg.ar-c.h-.02)));
-  pg.items.push(c);undo.push({pg,add:c});redo=[];rd(pg);document.querySelector('[data-t=lasso]').click();setLs({pg,items:[c]});save();gs('تكرّر الصندوق ✓ حرّكه للمكان اللي بدك ياه')}
-/* لقطة من الإطار الحي (HTML بحالته الحالية + مكان التمرير + طول المستند) */
-function hbSnap(o){return new Promise(res=>{const id=uid();let done=0,tm=0;const fin=v=>{if(done)return;done=1;removeEventListener('message',h);clearTimeout(tm);res(v)};
-  const h=ev=>{const m=ev.data;if(m&&m.nbSnapRes===id&&ev.source===o.fr.contentWindow)fin(m)};
-  tm=setTimeout(()=>fin(null),2500);addEventListener('message',h);try{o.fr.contentWindow.postMessage({nbSnap:id},'*')}catch(e){fin(null)}})}
-async function hbApply(d,o){const it=o.it,m=await hbSnap(o);if(!m||!m.html)return false;
-  const W=it.hw||900,th=Math.min(16000,Math.max(200,m.th||it.hh||1200));
-  try{const r=await htSlice(htXml(m.html,W,th),W,th,0,th,Math.min(1.6,Math.sqrt(8e6/(W*th))));
-    it.src=r.u;it.hh=th;it.hy=Math.max(0,Math.min(m.sy||0,th-W*it.h/it.w));IT.delete(it);o.dirty=0;o.scr=0;save();rd(d.pg);return true}catch(e){return false}}
-function hbGone(d,it,o){o.fr.remove();if(o.bt)o.bt.remove();d.hbm.delete(it)}
-function hbGone(d,it,o){o.fr.remove();if(o.bt)o.bt.remove();d.hbm.delete(it)}
-function hbClose(d,it,o){if(o.closing)return;
-  if(!o.rdy||!(o.dirty||o.scr)){hbGone(d,it,o);return}
-  o.closing=1;o.fr.style.pointerEvents='none';if(o.bt)o.bt.style.display='none';
-  hbApply(d,o).then(()=>{},()=>{}).then(()=>{if(o.closing&&d.hbm.get(it)===o)hbGone(d,it,o)})}
-/* رسائل الإطار: سجل التفاعلات (nbLog)، الجاهزية (nbReady)، التمرير (nbScr) */
-addEventListener('message',e=>{const m=e.data;if(!m||typeof m!=='object'||!(m.nbLog||m.nbReady||m.nbScr))return;
-  for(const d of DOM.values()){if(!d.hbm)continue;for(const o of d.hbm.values()){if(o.fr.contentWindow!==e.source)continue;
-    if(m.nbLog&&Array.isArray(m.ev)){const lg=o.it.hl||(o.it.hl=[]);for(const ev of m.ev){if(!Array.isArray(ev))continue;const l=lg[lg.length-1];if(ev[0]==='v'&&l&&l[0]==='v'&&l[1]===ev[1])lg[lg.length-1]=ev;else if(lg.length<3000)lg.push(ev)}o.dirty=1;save()}
-    else if(m.nbReady){o.rdy=1;o.t0=Date.now();if(o.it.hy)try{o.fr.contentWindow.postMessage({nbScroll:o.it.hy},'*')}catch(_){}}
-    else if(m.nbScr){if(Date.now()-o.t0>900)o.scr=1}
-    return}}});
 /* ===== أدواتي: ملف HTML بينحفظ كأداة، بيشتغل بلوحة عايمة فوق أي دفتر، وبيحكي مع التطبيق عبر جسر (postMessage) ===== */
 /* أوامر الجسر: storage.* / notify / page.info / page.readText / book.readText / page.insertImage / page.insertText / page.insertLive (+ box:true = صندوق جوّا الصفحة الحالية، v13.19) / book.addPages (الأوامر page/book بدها موافقة) */
 /* التخزين: nbtools = قائمة الأدوات، nbtool:<id> = كود الأداة، nbtooldata:<id> = بيانات الأداة (مفصولة لكل أداة) */
@@ -4846,172 +4575,6 @@ const toolsPut=l=>dbq('put','nbtools',l);
 
 /* --- مجلدات الأدوات (v13.11): المفتاح nbtoolfolders = [{id,name,p}] (p = المجلد الأب، بدونه = الرئيسية، وبتتداخل لأي عمق).
    كل أداة ممكن يكون فيها f = رقم مجلدها. بدون f أو بمجلد انحذف = الرئيسية، فالأدوات القديمة بتضل شغالة متل ما هي --- */
-let toolsTgtF=null;
-async function tfList(){const l=await dbq('get','nbtoolfolders');return Array.isArray(l)?l.filter(f=>f&&typeof f.id==='string'&&typeof f.name==='string'):[]}
-const tfPut=l=>dbq('put','nbtoolfolders',l);
-const tfHas=(F,id)=>!!id&&F.some(x=>x.id===id);
-const tfOfTool=(F,t)=>tfHas(F,t.f)?t.f:null;
-const tfParent=(F,f)=>tfHas(F,f.p)&&f.p!==f.id?f.p:null;
-function tfPath(F,id){const a=[],seen=new Set();let c=id;while(c&&!seen.has(c)){seen.add(c);const f=F.find(x=>x.id===c);if(!f)break;a.unshift(f.name);c=tfParent(F,f)}return a.join(' › ')}
-/* المجلد نفسه + كل مجلداته الفرعية (بأي عمق) */
-function tfDesc(F,id){const out=[id],seen=new Set([id]);for(let i=0;i<out.length;i++)F.forEach(f=>{if(!seen.has(f.id)&&tfParent(F,f)===out[i]){seen.add(f.id);out.push(f.id)}});return out}
-async function tfNew(fid){
-  nameIn('اسم المجلد','',async nm=>{
-    const F=await tfList(),x={id:'f'+uid()+uid(),name:nm.slice(0,60)};if(tfHas(F,fid))x.p=fid;F.push(x);
-    if(!(await tfPut(F))){gs('تعذّر حفظ المجلد');return}
-    gs('انعمل المجلد ✓ «'+x.name+'»');toolsMenu(fid)})}
-async function tfRename(id){
-  const F=await tfList(),f=F.find(x=>x.id===id);if(!f)return;
-  nameIn('اسم المجلد',f.name,async nm=>{const F2=await tfList(),x=F2.find(q=>q.id===id);if(!x)return;x.name=nm.slice(0,60);if(!(await tfPut(F2))){gs('تعذّر الحفظ');return}gs('تغيّر الاسم ✓');toolsMenu(id)})}
-/* حذف مجلد: يا بس المجلد (محتوياته بتنتقل للمجلد الأعلى)، يا المجلد مع كل اللي فيه نهائياً */
-async function tfDelete(id){
-  const[l,F]=await Promise.all([toolsList(),tfList()]),f=F.find(x=>x.id===id);if(!f)return;
-  const all=tfDesc(F,id),inT=l.filter(t=>all.includes(tfOfTool(F,t))),nf=all.length-1,par=tfParent(F,f),pf=par&&F.find(x=>x.id===par),
-    pn=pf?'«'+pf.name+'»':'الرئيسية',cnt=inT.length||nf?'  (فيه '+inT.length+' أداة'+(nf?' و'+nf+' مجلد فرعي':'')+')':'',it=[];
-  it.push(['نعم، احذف المجلد بس'+(cnt?' — محتوياته بتنتقل إلى '+pn:''),async()=>{
-    const[l2,F2]=await Promise.all([toolsList(),tfList()]),x=F2.find(q=>q.id===id);if(!x)return;
-    const up=tfParent(F2,x);
-    F2.forEach(q=>{if(q.p===id){if(up)q.p=up;else delete q.p}});
-    l2.forEach(t=>{if(t.f===id){if(up)t.f=up;else delete t.f}});
-    if(!(await toolsPut(l2))||!(await tfPut(F2.filter(q=>q.id!==id)))){gs('تعذّر حذف المجلد');return}
-    gs('انحذف المجلد ✓');toolsMenu(up)}]);
-  if(cnt)it.push(['⚠ احذف المجلد مع كل اللي فيه نهائياً (الأدوات وبياناتها)',()=>pick('متأكد؟ رح تنمسح '+inT.length+' أداة مع بياناتها نهائياً',[['نعم، احذف كل شي',async()=>{
-    const[l2,F2]=await Promise.all([toolsList(),tfList()]),x=F2.find(q=>q.id===id);if(!x)return;
-    const al=tfDesc(F2,id),gone=l2.filter(t=>al.includes(tfOfTool(F2,t))),up=tfParent(F2,x);
-    for(const t of gone){const r=TOPEN.get(t.id);if(r)toolClose(r,true);await dbq('put','nbtool:'+t.id,null);await dbq('put','nbtooldata:'+t.id,null)}
-    if(!(await toolsPut(l2.filter(t=>!gone.includes(t))))||!(await tfPut(F2.filter(q=>!al.includes(q.id))))){gs('تعذّر حذف المجلد');return}
-    gs('انحذف المجلد مع محتوياته ✓');toolsMenu(up)}]])]);
-  pick('🗑 حذف المجلد «'+f.name+'»'+cnt+'؟',it)}
-/* نقل أداة (kind='t') أو مجلد (kind='f') لمجلد ثاني: بتتنقّل بين المجلدات وبتكبس «انقل هون». المجلد ما بينقل جوا نفسه أو جوا مجلداته الفرعية */
-async function tfMovePick(kind,id,at){
-  const[l,F]=await Promise.all([toolsList(),tfList()]);at=tfHas(F,at)?at:null;
-  const item=(kind==='f'?F:l).find(x=>x.id===id);if(!item)return;
-  const bad=kind==='f'?tfDesc(F,id):[],here=kind==='f'?tfParent(F,item):tfOfTool(F,item),it=[];
-  if(at){const af=F.find(x=>x.id===at);it.push(['↩ رجوع',()=>tfMovePick(kind,id,tfParent(F,af))])}
-  if(at===here)it.push('هاد مكانه الحالي');
-  else it.push(['📍 انقل هون: '+(at?tfPath(F,at):'الرئيسية'),async()=>{
-    if(kind==='f'){const F2=await tfList(),x=F2.find(q=>q.id===id);if(!x)return;if(tfHas(F2,at))x.p=at;else delete x.p;if(!(await tfPut(F2))){gs('تعذّر النقل');return}}
-    else{const l2=await toolsList(),x=l2.find(q=>q.id===id);if(!x)return;if(at)x.f=at;else delete x.f;if(!(await toolsPut(l2))){gs('تعذّر النقل');return}}
-    gs('انتقل ✓');toolsMenu(at)}]);
-  const subs=F.filter(f=>tfParent(F,f)===at&&!bad.includes(f.id));
-  if(subs.length)it.push('المجلدات');
-  subs.forEach(f=>it.push(['📁 '+f.name+' ›',()=>tfMovePick(kind,id,f.id)]));
-  pick('نقل «'+item.name+'» إلى…'+(at?'  ('+tfPath(F,at)+')':''),it)}
-
-/* --- تحديد متعدد (v13.26): ☑ تحديد أدوات من قائمة أدواتي ← نقل لمجلد / حذف لعدة أدوات مرة وحدة --- */
-async function tfMoveMany(ids,at){
-  const[l,F]=await Promise.all([toolsList(),tfList()]);at=tfHas(F,at)?at:null;const it=[];
-  if(at){const af=F.find(x=>x.id===at);it.push(['↩ رجوع',()=>tfMoveMany(ids,tfParent(F,af))])}
-  it.push(['📍 انقل '+ids.length+' أداة هون: '+(at?tfPath(F,at):'الرئيسية'),async()=>{
-    const l2=await toolsList();l2.forEach(x=>{if(ids.includes(x.id)){if(at)x.f=at;else delete x.f}});
-    if(!(await toolsPut(l2))){gs('تعذّر النقل');return}
-    gs('انتقلت '+ids.length+' أداة ✓');toolsMenu(at)}]);
-  const subs=F.filter(f=>tfParent(F,f)===at);
-  if(subs.length)it.push('المجلدات');
-  subs.forEach(f=>it.push(['📁 '+f.name+' ›',()=>tfMoveMany(ids,f.id)]));
-  pick('نقل '+ids.length+' أداة إلى…'+(at?'  ('+tfPath(F,at)+')':''),it)}
-async function toolsSel(fid,sel,all){
-  sel=sel||new Set();const[l,F]=await Promise.all([toolsList(),tfList()]);fid=tfHas(F,fid)?fid:null;
-  for(const id of [...sel])if(!l.some(t=>t.id===id))sel.delete(id);
-  const vis=all?l:l.filter(t=>tfOfTool(F,t)===fid),n=sel.size,top=dlg.scrollTop,ids=()=>[...sel];
-  dlg.textContent='';dlg.hidden=false;dlg.append(mk('b','','☑ تحديد أدوات'+(n?'  ('+n+' محدّدة)':'')));
-  const B=(t,f,c)=>{const b=mk('button',c||'',t);b.onclick=f;dlg.append(b)};
-  B('↩ رجوع إلى أدواتي',()=>toolsMenu(fid));
-  B(all?'عرض: كل الأدوات (اضغط لعرض هالمجلد بس)':'عرض: '+(fid?'هالمجلد':'الرئيسية')+' (اضغط لعرض كل الأدوات)',()=>toolsSel(fid,sel,!all));
-  const allOn=vis.length>0&&vis.every(t=>sel.has(t.id));
-  B(allOn?'☐ إلغاء تحديد الكل':'☑ تحديد الكل ('+vis.length+')',()=>{vis.forEach(t=>allOn?sel.delete(t.id):sel.add(t.id));toolsSel(fid,sel,all)});
-  if(n){B('📁 نقل المحدّد ('+n+') لمجلد',()=>tfMoveMany(ids(),fid));
-    B('🗑 حذف المحدّد ('+n+')',()=>pick('حذف '+n+' أداة نهائياً؟ (بتنمسح مع بياناتها)',[['نعم، احذفهم',async()=>{
-      const gone=ids();for(const id of gone){const r=TOPEN.get(id);if(r)toolClose(r,true);await dbq('put','nbtool:'+id,null);await dbq('put','nbtooldata:'+id,null)}
-      const l2=(await toolsList()).filter(q=>!gone.includes(q.id));if(!(await toolsPut(l2))){gs('تعذّر الحذف');return}
-      gs('انحذفت '+gone.length+' أداة ✓');toolsMenu(fid)}]]),'danger')}
-  dlg.append(mk('div','st',vis.length?'اضغط على الأداة لتحديدها':'ما في أدوات هون.'));
-  vis.forEach(t=>{const p=all?tfPath(F,tfOfTool(F,t)):'';B((sel.has(t.id)?'☑ ':'☐ ')+t.name+(p?'   — 📁 '+p:''),()=>{if(sel.has(t.id))sel.delete(t.id);else sel.add(t.id);toolsSel(fid,sel,all)})});
-  B('إغلاق',()=>{dlg.hidden=true},'danger');dlg.scrollTop=top}
-
-/* --- إضافة أداة من ملف --- */
-async function toolsAdd(f){
-  const fid0=htTarget==='tool'?toolsTgtF:null;toolsTgtF=null;
-  if(f.size>8e6){gs('الملف كبير كثير (أكثر من 8 ميغا)');return}
-  let txt;try{txt=await f.text()}catch(e){gs('تعذّر قراءة الملف');return}
-  if(!txt.trim()){gs('الملف فاضي');return}
-  nameIn('اسم الأداة',f.name.replace(/\.html?$/i,''),async nm=>{
-    const id=uid()+uid();
-    if(!(await dbq('put','nbtool:'+id,txt))){gs('تعذّر حفظ الأداة');return}
-    const l=await toolsList(),F=await tfList(),nt={id,name:nm,ts:Date.now()};if(tfHas(F,fid0))nt.f=fid0;l.push(nt);
-    if(!(await toolsPut(l))){gs('تعذّر حفظ قائمة الأدوات');return}
-    gs('انضافت الأداة ✓ «'+nm+'»');toolOpen(id)})}
-
-/* --- القوائم --- */
-/* fid = المجلد المفتوح (بدونه = الرئيسية) */
-async function toolsMenu(fid){
-  const[l,F]=await Promise.all([toolsList(),tfList()]);fid=tfHas(F,fid)?fid:null;
-  const cur=fid&&F.find(x=>x.id===fid),it=[];
-  if(cur){const up=tfParent(F,cur),uf=up&&F.find(x=>x.id===up);it.push(['↩ رجوع إلى '+(uf?'«'+uf.name+'»':'أدواتي'),()=>toolsMenu(up)])}
-  const subs=F.filter(f=>tfParent(F,f)===fid),ts=l.filter(t=>tfOfTool(F,t)===fid);
-  if(subs.length){it.push('المجلدات');subs.forEach(f=>{const d=tfDesc(F,f.id),n=l.filter(t=>d.includes(tfOfTool(F,t))).length;it.push(['📁 '+f.name+'  ('+n+')',()=>toolsMenu(f.id)])})}
-  if(ts.length){it.push('أدواتك (اضغط لتشغيلها)');ts.forEach(t=>it.push(['🧩 '+t.name+(TOPEN.has(t.id)?'  ● شغّالة':''),()=>toolOpen(t.id)]))}
-  else if(!subs.length)it.push(cur?'المجلد فاضي. أضف أداة أو مجلد جواته.':'ما عندك أدوات بعد. اختر «إضافة أداة» وارفع ملف HTML.');
-  if(l.length&&window.__dockPick&&!cur)it.push(['◧ تشغيل أداة بوضع التقسيم (بالجنب)',()=>window.__dockPick()]);it.push('إدارة');
-  it.push(['＋ إضافة أداة من ملف HTML'+(cur?' (جوا هالمجلد)':''),()=>{htTarget='tool';toolsTgtF=fid;htIn.click()}]);
-  it.push(['📁＋ مجلد جديد'+(cur?' (جوا هالمجلد)':''),()=>tfNew(fid)]);
-  if(cur){it.push(['✏️ تغيير اسم المجلد',()=>tfRename(fid)],['📁 نقل المجلد لمجلد ثاني',()=>tfMovePick('f',fid,tfParent(F,cur))],['🗑 حذف المجلد',()=>tfDelete(fid)])}
-  if(l.length)it.push(['☑ تحديد أدوات (نقل / حذف عدة أدوات)',()=>toolsSel(fid)]);
-  if(l.length)it.push(['⚙ إدارة الأدوات (اسم / نقل / بيانات / حذف)',()=>toolsManage()]);
-  pick(cur?'📁 '+tfPath(F,fid):'🧩 أدواتي',it)}
-async function toolsManage(){
-  const[l,F]=await Promise.all([toolsList(),tfList()]);
-  pick('⚙ إدارة الأدوات',l.map(t=>{const p=tfPath(F,tfOfTool(F,t));return['🧩 '+t.name+(p?'   — 📁 '+p:''),()=>toolOne(t)]}))}
-function toolOne(t){
-  pick('🧩 '+t.name,[
-    ['▶ تشغيل',()=>toolOpen(t.id)],
-    ...(window.__dockTool?[['◧ تشغيل بوضع التقسيم (بالجنب)',()=>window.__dockTool(t.id)]]:[]),
-    ['✏️ تغيير الاسم',()=>nameIn('اسم الأداة',t.name,async nm=>{const l=await toolsList(),x=l.find(q=>q.id===t.id);if(!x)return;x.name=nm;await toolsPut(l);const r=TOPEN.get(t.id);if(r){r.name=nm;r.ttl.textContent=nm}gs('تغيّر الاسم ✓')})],
-    ['📁 نقل لمجلد',()=>tfMovePick('t',t.id,t.f)],
-    ['🔐 صلاحيات الصفحة (قراءة / كتابة)',()=>toolPerm(t)],
-    ['♻️ مسح بيانات الأداة المحفوظة',()=>pick('مسح بيانات «'+t.name+'» نهائيا؟',[['نعم، امسح البيانات',async()=>{const r=TOPEN.get(t.id);if(r){clearTimeout(r.t);r.t=0;r.dirty=0;r.data=Object.create(null)}await dbq('put','nbtooldata:'+t.id,null);if(r)toolReload(r);gs('انمسحت بيانات الأداة ✓')}]])],
-    ['🗑 حذف الأداة',()=>pick('حذف «'+t.name+'» نهائيا؟ (بتنمسح مع بياناتها)',[['نعم، احذفها',async()=>{const r=TOPEN.get(t.id);if(r)toolClose(r,true);await dbq('put','nbtool:'+t.id,null);await dbq('put','nbtooldata:'+t.id,null);const l=(await toolsList()).filter(q=>q.id!==t.id);await toolsPut(l);gs('انحذفت الأداة ✓')}]])]])}
-
-/* --- الكود اللي بينحقن جوا الأداة: جسر + بديل للـ localStorage (لأن الإطار المعزول ما بيسمح فيه) --- */
-function toolInner(){
-  var P=JSON.parse(JSON.stringify(window.__NBT||{})),D=Object.create(null),k0;
-  if(P.d)for(k0 in P.d)D[k0]=P.d[k0];
-  var pend={},seq=0,OWN=Object.prototype.hasOwnProperty;
-  function send(action,payload){return new Promise(function(res,rej){var id=++seq;pend[id]={res:res,rej:rej};parent.postMessage({nbTool:1,id:id,action:action,payload:payload},'*');setTimeout(function(){if(pend[id]){delete pend[id];rej(new Error('timeout'))}},/^(page|book)\./.test(action)?90000:15000)})}
-  addEventListener('message',function(e){var m=e.data;if(e.source!==parent||!m||m.nbToolRes==null)return;var p=pend[m.nbToolRes];if(!p)return;delete pend[m.nbToolRes];if(m.ok)p.res(m.result);else p.rej(new Error(m.error||'error'))});
-  function size(){try{return JSON.stringify(D).length}catch(e){return 0}}
-  var NB={name:P.n||'',call:send,
-    storage:{
-      get:function(k){return Promise.resolve(OWN.call(D,k)?D[k]:null)},
-      set:function(k,v){D[k]=v;return send('storage.set',{key:k,value:v})},
-      remove:function(k){delete D[k];return send('storage.remove',{key:k})},
-      keys:function(){return Promise.resolve(Object.keys(D))}},
-    notify:function(t){return send('notify',{text:String(t)})}};
-  window.NB=NB;
-  function cp(o,k,v){var p={},i;if(o)for(i in o)p[i]=o[i];p[k]=v;return p}
-  NB.page={
-    info:function(){return send('page.info',{})},
-    readText:function(o){return send('page.readText',o||{})},
-    insertImage:function(dataUrl,o){return send('page.insertImage',cp(o,'data',dataUrl))},
-    insertCanvas:function(cv,o){return send('page.insertImage',cp(o,'data',cv.toDataURL('image/png')))},
-    insertText:function(text,o){return send('page.insertText',cp(o,'text',text))},
-    insertLive:function(html,o){return send('page.insertLive',cp(o,'html',html))},
-    insertSelf:function(o){return send('page.insertLive',o||{})}};
-  NB.book={readText:function(o){return send('book.readText',o||{})},
-    addPages:function(pages,o){return send('book.addPages',cp(o,'pages',pages))}};
-  function str(v){return typeof v==='string'?v:JSON.stringify(v)}
-  var LS={
-    getItem:function(k){k=String(k);return OWN.call(D,k)?str(D[k]):null},
-    setItem:function(k,v){k=String(k);v=String(v);var old=D[k];D[k]=v;if(size()>1.5e6){if(old===undefined)delete D[k];else D[k]=old;throw new DOMException('quota exceeded','QuotaExceededError')}send('storage.set',{key:k,value:v}).catch(function(){})},
-    removeItem:function(k){k=String(k);delete D[k];send('storage.remove',{key:k}).catch(function(){})},
-    clear:function(){Object.keys(D).forEach(function(k){delete D[k];send('storage.remove',{key:k}).catch(function(){})})},
-    key:function(i){return Object.keys(D)[i]||null}};
-  Object.defineProperty(LS,'length',{get:function(){return Object.keys(D).length}});
-  var M=Object.create(null),SS={getItem:function(k){k=String(k);return k in M?M[k]:null},setItem:function(k,v){M[String(k)]=String(v)},removeItem:function(k){delete M[String(k)]},clear:function(){M=Object.create(null)},key:function(i){return Object.keys(M)[i]||null}};
-  Object.defineProperty(SS,'length',{get:function(){return Object.keys(M).length}});
-  try{Object.defineProperty(window,'localStorage',{configurable:true,get:function(){return LS}})}catch(e){}
-  try{Object.defineProperty(window,'sessionStorage',{configurable:true,get:function(){return SS}})}catch(e){}
-}
 function toolDoc(t,r){
   const j=JSON.stringify(JSON.stringify({n:r.name,d:r.data})).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
   const sc='<script>window.__NBT=JSON.parse('+j+');('+toolInner.toString()+')()<\/script>';
@@ -5241,7 +4804,172 @@ addEventListener('resize',()=>TOPEN.forEach(r=>{if(r.el.classList.contains('max'
   b.onclick=()=>toolsMenu();const tp=T.querySelector('[data-t=tap]');if(tp)tp.after(b);else T.append(b)})();
 /* جسر لسكربت التقسيم (34_tail) لأنه خارج الـIIFE الرئيسي ومش شايف هالدوال مباشرة */
 window.__TOOLS={list:toolsList,open:toolOpen,close:toolClose,get:id=>TOPEN.get(id),toast:gs,folders:tfList,path:tfPath};
-/* ===== مقابض تعديل الأشكال: بتطلع تلقائيًا بعد كل شكل (مرسوم أو من قائمة الأشكال) =====
+let toolsTgtF=null;
+async function tfList(){const l=await dbq('get','nbtoolfolders');return Array.isArray(l)?l.filter(f=>f&&typeof f.id==='string'&&typeof f.name==='string'):[]}
+const tfPut=l=>dbq('put','nbtoolfolders',l);
+const tfHas=(F,id)=>!!id&&F.some(x=>x.id===id);
+const tfOfTool=(F,t)=>tfHas(F,t.f)?t.f:null;
+const tfParent=(F,f)=>tfHas(F,f.p)&&f.p!==f.id?f.p:null;
+function tfPath(F,id){const a=[],seen=new Set();let c=id;while(c&&!seen.has(c)){seen.add(c);const f=F.find(x=>x.id===c);if(!f)break;a.unshift(f.name);c=tfParent(F,f)}return a.join(' › ')}
+/* المجلد نفسه + كل مجلداته الفرعية (بأي عمق) */
+function tfDesc(F,id){const out=[id],seen=new Set([id]);for(let i=0;i<out.length;i++)F.forEach(f=>{if(!seen.has(f.id)&&tfParent(F,f)===out[i]){seen.add(f.id);out.push(f.id)}});return out}
+async function tfNew(fid){
+  nameIn('اسم المجلد','',async nm=>{
+    const F=await tfList(),x={id:'f'+uid()+uid(),name:nm.slice(0,60)};if(tfHas(F,fid))x.p=fid;F.push(x);
+    if(!(await tfPut(F))){gs('تعذّر حفظ المجلد');return}
+    gs('انعمل المجلد ✓ «'+x.name+'»');toolsMenu(fid)})}
+async function tfRename(id){
+  const F=await tfList(),f=F.find(x=>x.id===id);if(!f)return;
+  nameIn('اسم المجلد',f.name,async nm=>{const F2=await tfList(),x=F2.find(q=>q.id===id);if(!x)return;x.name=nm.slice(0,60);if(!(await tfPut(F2))){gs('تعذّر الحفظ');return}gs('تغيّر الاسم ✓');toolsMenu(id)})}
+/* حذف مجلد: يا بس المجلد (محتوياته بتنتقل للمجلد الأعلى)، يا المجلد مع كل اللي فيه نهائياً */
+async function tfDelete(id){
+  const[l,F]=await Promise.all([toolsList(),tfList()]),f=F.find(x=>x.id===id);if(!f)return;
+  const all=tfDesc(F,id),inT=l.filter(t=>all.includes(tfOfTool(F,t))),nf=all.length-1,par=tfParent(F,f),pf=par&&F.find(x=>x.id===par),
+    pn=pf?'«'+pf.name+'»':'الرئيسية',cnt=inT.length||nf?'  (فيه '+inT.length+' أداة'+(nf?' و'+nf+' مجلد فرعي':'')+')':'',it=[];
+  it.push(['نعم، احذف المجلد بس'+(cnt?' — محتوياته بتنتقل إلى '+pn:''),async()=>{
+    const[l2,F2]=await Promise.all([toolsList(),tfList()]),x=F2.find(q=>q.id===id);if(!x)return;
+    const up=tfParent(F2,x);
+    F2.forEach(q=>{if(q.p===id){if(up)q.p=up;else delete q.p}});
+    l2.forEach(t=>{if(t.f===id){if(up)t.f=up;else delete t.f}});
+    if(!(await toolsPut(l2))||!(await tfPut(F2.filter(q=>q.id!==id)))){gs('تعذّر حذف المجلد');return}
+    gs('انحذف المجلد ✓');toolsMenu(up)}]);
+  if(cnt)it.push(['⚠ احذف المجلد مع كل اللي فيه نهائياً (الأدوات وبياناتها)',()=>pick('متأكد؟ رح تنمسح '+inT.length+' أداة مع بياناتها نهائياً',[['نعم، احذف كل شي',async()=>{
+    const[l2,F2]=await Promise.all([toolsList(),tfList()]),x=F2.find(q=>q.id===id);if(!x)return;
+    const al=tfDesc(F2,id),gone=l2.filter(t=>al.includes(tfOfTool(F2,t))),up=tfParent(F2,x);
+    for(const t of gone){const r=TOPEN.get(t.id);if(r)toolClose(r,true);await dbq('put','nbtool:'+t.id,null);await dbq('put','nbtooldata:'+t.id,null)}
+    if(!(await toolsPut(l2.filter(t=>!gone.includes(t))))||!(await tfPut(F2.filter(q=>!al.includes(q.id))))){gs('تعذّر حذف المجلد');return}
+    gs('انحذف المجلد مع محتوياته ✓');toolsMenu(up)}]])]);
+  pick('🗑 حذف المجلد «'+f.name+'»'+cnt+'؟',it)}
+/* نقل أداة (kind='t') أو مجلد (kind='f') لمجلد ثاني: بتتنقّل بين المجلدات وبتكبس «انقل هون». المجلد ما بينقل جوا نفسه أو جوا مجلداته الفرعية */
+async function tfMovePick(kind,id,at){
+  const[l,F]=await Promise.all([toolsList(),tfList()]);at=tfHas(F,at)?at:null;
+  const item=(kind==='f'?F:l).find(x=>x.id===id);if(!item)return;
+  const bad=kind==='f'?tfDesc(F,id):[],here=kind==='f'?tfParent(F,item):tfOfTool(F,item),it=[];
+  if(at){const af=F.find(x=>x.id===at);it.push(['↩ رجوع',()=>tfMovePick(kind,id,tfParent(F,af))])}
+  if(at===here)it.push('هاد مكانه الحالي');
+  else it.push(['📍 انقل هون: '+(at?tfPath(F,at):'الرئيسية'),async()=>{
+    if(kind==='f'){const F2=await tfList(),x=F2.find(q=>q.id===id);if(!x)return;if(tfHas(F2,at))x.p=at;else delete x.p;if(!(await tfPut(F2))){gs('تعذّر النقل');return}}
+    else{const l2=await toolsList(),x=l2.find(q=>q.id===id);if(!x)return;if(at)x.f=at;else delete x.f;if(!(await toolsPut(l2))){gs('تعذّر النقل');return}}
+    gs('انتقل ✓');toolsMenu(at)}]);
+  const subs=F.filter(f=>tfParent(F,f)===at&&!bad.includes(f.id));
+  if(subs.length)it.push('المجلدات');
+  subs.forEach(f=>it.push(['📁 '+f.name+' ›',()=>tfMovePick(kind,id,f.id)]));
+  pick('نقل «'+item.name+'» إلى…'+(at?'  ('+tfPath(F,at)+')':''),it)}
+
+/* --- تحديد متعدد (v13.26): ☑ تحديد أدوات من قائمة أدواتي ← نقل لمجلد / حذف لعدة أدوات مرة وحدة --- */
+async function tfMoveMany(ids,at){
+  const[l,F]=await Promise.all([toolsList(),tfList()]);at=tfHas(F,at)?at:null;const it=[];
+  if(at){const af=F.find(x=>x.id===at);it.push(['↩ رجوع',()=>tfMoveMany(ids,tfParent(F,af))])}
+  it.push(['📍 انقل '+ids.length+' أداة هون: '+(at?tfPath(F,at):'الرئيسية'),async()=>{
+    const l2=await toolsList();l2.forEach(x=>{if(ids.includes(x.id)){if(at)x.f=at;else delete x.f}});
+    if(!(await toolsPut(l2))){gs('تعذّر النقل');return}
+    gs('انتقلت '+ids.length+' أداة ✓');toolsMenu(at)}]);
+  const subs=F.filter(f=>tfParent(F,f)===at);
+  if(subs.length)it.push('المجلدات');
+  subs.forEach(f=>it.push(['📁 '+f.name+' ›',()=>tfMoveMany(ids,f.id)]));
+  pick('نقل '+ids.length+' أداة إلى…'+(at?'  ('+tfPath(F,at)+')':''),it)}
+async function toolsSel(fid,sel,all){
+  sel=sel||new Set();const[l,F]=await Promise.all([toolsList(),tfList()]);fid=tfHas(F,fid)?fid:null;
+  for(const id of [...sel])if(!l.some(t=>t.id===id))sel.delete(id);
+  const vis=all?l:l.filter(t=>tfOfTool(F,t)===fid),n=sel.size,top=dlg.scrollTop,ids=()=>[...sel];
+  dlg.textContent='';dlg.hidden=false;dlg.append(mk('b','','☑ تحديد أدوات'+(n?'  ('+n+' محدّدة)':'')));
+  const B=(t,f,c)=>{const b=mk('button',c||'',t);b.onclick=f;dlg.append(b)};
+  B('↩ رجوع إلى أدواتي',()=>toolsMenu(fid));
+  B(all?'عرض: كل الأدوات (اضغط لعرض هالمجلد بس)':'عرض: '+(fid?'هالمجلد':'الرئيسية')+' (اضغط لعرض كل الأدوات)',()=>toolsSel(fid,sel,!all));
+  const allOn=vis.length>0&&vis.every(t=>sel.has(t.id));
+  B(allOn?'☐ إلغاء تحديد الكل':'☑ تحديد الكل ('+vis.length+')',()=>{vis.forEach(t=>allOn?sel.delete(t.id):sel.add(t.id));toolsSel(fid,sel,all)});
+  if(n){B('📁 نقل المحدّد ('+n+') لمجلد',()=>tfMoveMany(ids(),fid));
+    B('🗑 حذف المحدّد ('+n+')',()=>pick('حذف '+n+' أداة نهائياً؟ (بتنمسح مع بياناتها)',[['نعم، احذفهم',async()=>{
+      const gone=ids();for(const id of gone){const r=TOPEN.get(id);if(r)toolClose(r,true);await dbq('put','nbtool:'+id,null);await dbq('put','nbtooldata:'+id,null)}
+      const l2=(await toolsList()).filter(q=>!gone.includes(q.id));if(!(await toolsPut(l2))){gs('تعذّر الحذف');return}
+      gs('انحذفت '+gone.length+' أداة ✓');toolsMenu(fid)}]]),'danger')}
+  dlg.append(mk('div','st',vis.length?'اضغط على الأداة لتحديدها':'ما في أدوات هون.'));
+  vis.forEach(t=>{const p=all?tfPath(F,tfOfTool(F,t)):'';B((sel.has(t.id)?'☑ ':'☐ ')+t.name+(p?'   — 📁 '+p:''),()=>{if(sel.has(t.id))sel.delete(t.id);else sel.add(t.id);toolsSel(fid,sel,all)})});
+  B('إغلاق',()=>{dlg.hidden=true},'danger');dlg.scrollTop=top}
+
+/* --- إضافة أداة من ملف --- */
+async function toolsAdd(f){
+  const fid0=htTarget==='tool'?toolsTgtF:null;toolsTgtF=null;
+  if(f.size>8e6){gs('الملف كبير كثير (أكثر من 8 ميغا)');return}
+  let txt;try{txt=await f.text()}catch(e){gs('تعذّر قراءة الملف');return}
+  if(!txt.trim()){gs('الملف فاضي');return}
+  nameIn('اسم الأداة',f.name.replace(/\.html?$/i,''),async nm=>{
+    const id=uid()+uid();
+    if(!(await dbq('put','nbtool:'+id,txt))){gs('تعذّر حفظ الأداة');return}
+    const l=await toolsList(),F=await tfList(),nt={id,name:nm,ts:Date.now()};if(tfHas(F,fid0))nt.f=fid0;l.push(nt);
+    if(!(await toolsPut(l))){gs('تعذّر حفظ قائمة الأدوات');return}
+    gs('انضافت الأداة ✓ «'+nm+'»');toolOpen(id)})}
+
+/* --- القوائم --- */
+/* fid = المجلد المفتوح (بدونه = الرئيسية) */
+async function toolsMenu(fid){
+  const[l,F]=await Promise.all([toolsList(),tfList()]);fid=tfHas(F,fid)?fid:null;
+  const cur=fid&&F.find(x=>x.id===fid),it=[];
+  if(cur){const up=tfParent(F,cur),uf=up&&F.find(x=>x.id===up);it.push(['↩ رجوع إلى '+(uf?'«'+uf.name+'»':'أدواتي'),()=>toolsMenu(up)])}
+  const subs=F.filter(f=>tfParent(F,f)===fid),ts=l.filter(t=>tfOfTool(F,t)===fid);
+  if(subs.length){it.push('المجلدات');subs.forEach(f=>{const d=tfDesc(F,f.id),n=l.filter(t=>d.includes(tfOfTool(F,t))).length;it.push(['📁 '+f.name+'  ('+n+')',()=>toolsMenu(f.id)])})}
+  if(ts.length){it.push('أدواتك (اضغط لتشغيلها)');ts.forEach(t=>it.push(['🧩 '+t.name+(TOPEN.has(t.id)?'  ● شغّالة':''),()=>toolOpen(t.id)]))}
+  else if(!subs.length)it.push(cur?'المجلد فاضي. أضف أداة أو مجلد جواته.':'ما عندك أدوات بعد. اختر «إضافة أداة» وارفع ملف HTML.');
+  if(l.length&&window.__dockPick&&!cur)it.push(['◧ تشغيل أداة بوضع التقسيم (بالجنب)',()=>window.__dockPick()]);it.push('إدارة');
+  it.push(['＋ إضافة أداة من ملف HTML'+(cur?' (جوا هالمجلد)':''),()=>{htTarget='tool';toolsTgtF=fid;htIn.click()}]);
+  it.push(['📁＋ مجلد جديد'+(cur?' (جوا هالمجلد)':''),()=>tfNew(fid)]);
+  if(cur){it.push(['✏️ تغيير اسم المجلد',()=>tfRename(fid)],['📁 نقل المجلد لمجلد ثاني',()=>tfMovePick('f',fid,tfParent(F,cur))],['🗑 حذف المجلد',()=>tfDelete(fid)])}
+  if(l.length)it.push(['☑ تحديد أدوات (نقل / حذف عدة أدوات)',()=>toolsSel(fid)]);
+  if(l.length)it.push(['⚙ إدارة الأدوات (اسم / نقل / بيانات / حذف)',()=>toolsManage()]);
+  pick(cur?'📁 '+tfPath(F,fid):'🧩 أدواتي',it)}
+async function toolsManage(){
+  const[l,F]=await Promise.all([toolsList(),tfList()]);
+  pick('⚙ إدارة الأدوات',l.map(t=>{const p=tfPath(F,tfOfTool(F,t));return['🧩 '+t.name+(p?'   — 📁 '+p:''),()=>toolOne(t)]}))}
+function toolOne(t){
+  pick('🧩 '+t.name,[
+    ['▶ تشغيل',()=>toolOpen(t.id)],
+    ...(window.__dockTool?[['◧ تشغيل بوضع التقسيم (بالجنب)',()=>window.__dockTool(t.id)]]:[]),
+    ['✏️ تغيير الاسم',()=>nameIn('اسم الأداة',t.name,async nm=>{const l=await toolsList(),x=l.find(q=>q.id===t.id);if(!x)return;x.name=nm;await toolsPut(l);const r=TOPEN.get(t.id);if(r){r.name=nm;r.ttl.textContent=nm}gs('تغيّر الاسم ✓')})],
+    ['📁 نقل لمجلد',()=>tfMovePick('t',t.id,t.f)],
+    ['🔐 صلاحيات الصفحة (قراءة / كتابة)',()=>toolPerm(t)],
+    ['♻️ مسح بيانات الأداة المحفوظة',()=>pick('مسح بيانات «'+t.name+'» نهائيا؟',[['نعم، امسح البيانات',async()=>{const r=TOPEN.get(t.id);if(r){clearTimeout(r.t);r.t=0;r.dirty=0;r.data=Object.create(null)}await dbq('put','nbtooldata:'+t.id,null);if(r)toolReload(r);gs('انمسحت بيانات الأداة ✓')}]])],
+    ['🗑 حذف الأداة',()=>pick('حذف «'+t.name+'» نهائيا؟ (بتنمسح مع بياناتها)',[['نعم، احذفها',async()=>{const r=TOPEN.get(t.id);if(r)toolClose(r,true);await dbq('put','nbtool:'+t.id,null);await dbq('put','nbtooldata:'+t.id,null);const l=(await toolsList()).filter(q=>q.id!==t.id);await toolsPut(l);gs('انحذفت الأداة ✓')}]])]])}
+
+/* --- الكود اللي بينحقن جوا الأداة: جسر + بديل للـ localStorage (لأن الإطار المعزول ما بيسمح فيه) --- */
+function toolInner(){
+  var P=JSON.parse(JSON.stringify(window.__NBT||{})),D=Object.create(null),k0;
+  if(P.d)for(k0 in P.d)D[k0]=P.d[k0];
+  var pend={},seq=0,OWN=Object.prototype.hasOwnProperty;
+  function send(action,payload){return new Promise(function(res,rej){var id=++seq;pend[id]={res:res,rej:rej};parent.postMessage({nbTool:1,id:id,action:action,payload:payload},'*');setTimeout(function(){if(pend[id]){delete pend[id];rej(new Error('timeout'))}},/^(page|book)\./.test(action)?90000:15000)})}
+  addEventListener('message',function(e){var m=e.data;if(e.source!==parent||!m||m.nbToolRes==null)return;var p=pend[m.nbToolRes];if(!p)return;delete pend[m.nbToolRes];if(m.ok)p.res(m.result);else p.rej(new Error(m.error||'error'))});
+  function size(){try{return JSON.stringify(D).length}catch(e){return 0}}
+  var NB={name:P.n||'',call:send,
+    storage:{
+      get:function(k){return Promise.resolve(OWN.call(D,k)?D[k]:null)},
+      set:function(k,v){D[k]=v;return send('storage.set',{key:k,value:v})},
+      remove:function(k){delete D[k];return send('storage.remove',{key:k})},
+      keys:function(){return Promise.resolve(Object.keys(D))}},
+    notify:function(t){return send('notify',{text:String(t)})}};
+  window.NB=NB;
+  function cp(o,k,v){var p={},i;if(o)for(i in o)p[i]=o[i];p[k]=v;return p}
+  NB.page={
+    info:function(){return send('page.info',{})},
+    readText:function(o){return send('page.readText',o||{})},
+    insertImage:function(dataUrl,o){return send('page.insertImage',cp(o,'data',dataUrl))},
+    insertCanvas:function(cv,o){return send('page.insertImage',cp(o,'data',cv.toDataURL('image/png')))},
+    insertText:function(text,o){return send('page.insertText',cp(o,'text',text))},
+    insertLive:function(html,o){return send('page.insertLive',cp(o,'html',html))},
+    insertSelf:function(o){return send('page.insertLive',o||{})}};
+  NB.book={readText:function(o){return send('book.readText',o||{})},
+    addPages:function(pages,o){return send('book.addPages',cp(o,'pages',pages))}};
+  function str(v){return typeof v==='string'?v:JSON.stringify(v)}
+  var LS={
+    getItem:function(k){k=String(k);return OWN.call(D,k)?str(D[k]):null},
+    setItem:function(k,v){k=String(k);v=String(v);var old=D[k];D[k]=v;if(size()>1.5e6){if(old===undefined)delete D[k];else D[k]=old;throw new DOMException('quota exceeded','QuotaExceededError')}send('storage.set',{key:k,value:v}).catch(function(){})},
+    removeItem:function(k){k=String(k);delete D[k];send('storage.remove',{key:k}).catch(function(){})},
+    clear:function(){Object.keys(D).forEach(function(k){delete D[k];send('storage.remove',{key:k}).catch(function(){})})},
+    key:function(i){return Object.keys(D)[i]||null}};
+  Object.defineProperty(LS,'length',{get:function(){return Object.keys(D).length}});
+  var M=Object.create(null),SS={getItem:function(k){k=String(k);return k in M?M[k]:null},setItem:function(k,v){M[String(k)]=String(v)},removeItem:function(k){delete M[String(k)]},clear:function(){M=Object.create(null)},key:function(i){return Object.keys(M)[i]||null}};
+  Object.defineProperty(SS,'length',{get:function(){return Object.keys(M).length}});
+  try{Object.defineProperty(window,'localStorage',{configurable:true,get:function(){return LS}})}catch(e){}
+  try{Object.defineProperty(window,'sessionStorage',{configurable:true,get:function(){return SS}})}catch(e){}
+}/* ===== مقابض تعديل الأشكال: بتطلع تلقائيًا بعد كل شكل (مرسوم أو من قائمة الأشكال) =====
    رؤوس المضلعات بتنسحب، الدائرة/المستطيل 4 مقابض (+ زوايا)، الخط طرفينه، مقبض تدوير، وقائمة: حذف / نسخ / نمط.
    بتختفي بأول لمسة برا المقابض. التعديل كله بيرجع بالتراجع. */
 const SE={pg:null,it:null,root:null,hs:[],menu:null,sty:null,loop:0,drag:null,sig:''};
@@ -5894,9 +5622,155 @@ document.addEventListener('selectstart',e=>{const t=e.target,el=t&&(t.nodeType==
 document.addEventListener('contextmenu',e=>{if(e.target&&e.target.tagName==='CANVAS')e.preventDefault()});
 /* v13.31: أي تحديد نص عالق بالواجهة (متل ✕ التاب بالدفتر التاني) بينشال فوراً، إلا بحقول الكتابة والنصوص المسموح تحديدها */
 document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!s||s.isCollapsed||!s.rangeCount)return;const n=s.anchorNode,el=n&&(n.nodeType===1?n:n.parentElement);if(!el||!el.closest||el.closest('.tl,input,textarea,[contenteditable]'))return;const cs=getComputedStyle(el);if((cs.userSelect||cs.webkitUserSelect)==='text')return;s.removeAllRanges()}catch(e){}});
+/* ===== البوابات البصرية (Visual Portals) =====
+   بوابة = مستطيل على صفحة مربوط بصفحة ثانية، وبينفتح كنافذة منبثقة (PIP) فيها معاينة الصفحة الهدف.
+   التخزين: pg.ptl=[{r:[x,y,w,h],tg:معرّف الصفحة الهدف}] (x,y,w,h نسبة من عرض الصفحة، متل باقي العناصر).
+   مش جوا pg.items عشان ما تتأثر الممحاة والتحديد والتراجع والتصدير.
+   بيستخدم من نفس الـIIFE: book, pagesEl, gs, save, pick, nameIn, goPg, drawPage, loadBg, $ */
+(function(){
+  let pm=false,tm=0;
+  const pgOf=el=>el&&el._d&&el._d.pg;
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const st=document.createElement('style');
+  st.textContent='.ptl{position:absolute;inset:0;pointer-events:none;z-index:9}'
+  +'.ptr{position:absolute;box-sizing:border-box;border:2.5px dashed #8b5cf6;background:rgba(139,92,246,.08);border-radius:8px;pointer-events:none}'
+  +'.ptr.ok{border-color:#10b981;background:rgba(16,185,129,.08)}'
+  +'.ptr b{position:absolute;top:-2px;left:-2px;min-width:30px;height:30px;padding:0 6px;box-sizing:border-box;border-radius:8px;background:#8b5cf6;color:#fff;font:700 13px/30px sans-serif;text-align:center;pointer-events:auto;cursor:pointer;touch-action:manipulation}'
+  +'.ptr.ok b{background:#10b981}'
+  +'.ptcap{position:absolute;inset:0;z-index:10;touch-action:none;cursor:crosshair;background:rgba(139,92,246,.07)}'
+  +'.ptrb{position:absolute;border:3px dashed #8b5cf6;background:rgba(139,92,246,.18);border-radius:8px;pointer-events:none}'
+  +'#ptBtn.on{background:rgba(139,92,246,.22);border-radius:10px}'
+  +'#ptip{position:fixed;left:12px;bottom:96px;width:min(340px,86vw);max-height:62vh;display:flex;flex-direction:column;background:var(--elev,#fff);color:var(--ink,#111);border:1px solid var(--line,#ddd);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.3);z-index:60;overflow:hidden}'
+  +'#ptip .h{display:flex;align-items:center;gap:6px;padding:7px 10px;background:#8b5cf6;color:#fff;font-weight:700;font-size:14px}'
+  +'#ptip .h span{flex:1}'
+  +'#ptip .h button{background:rgba(255,255,255,.22);border:0;color:#fff;border-radius:8px;padding:4px 10px;font-size:13px;cursor:pointer}'
+  +'#ptip .b{overflow:auto;flex:1}#ptip canvas{display:block;width:100%}';
+  document.head.append(st);
+
+  const tgPg=p=>book&&book.pages.find(x=>x.id===p.tg);
+  const closePip=()=>{const o=$('ptip');if(o)o.remove()};
+  function openPip(t){
+    closePip();
+    const n=book.pages.indexOf(t)+1,W=Math.round(340*Math.min(2,window.devicePixelRatio||1));
+    const box=document.createElement('div');box.id='ptip';
+    const h=document.createElement('div');h.className='h';
+    const s=document.createElement('span');s.textContent='🔮 صفحة '+n;
+    const go=document.createElement('button');go.textContent='انتقال ↗';go.onclick=()=>{closePip();goPg(book.pages.indexOf(t))};
+    const x=document.createElement('button');x.textContent='✕';x.onclick=closePip;
+    h.append(s,go,x);
+    const b=document.createElement('div');b.className='b';
+    const cv=document.createElement('canvas');cv.width=W;cv.height=Math.round(W*t.ar);
+    b.append(cv);box.append(h,b);document.body.append(box);
+    const dr=()=>{try{drawPage.lv=0;drawPage(cv.getContext('2d'),t,W)}catch(e){}};
+    dr();if(t.bg)loadBg(t.bg).then(dr);
+  }
+  function link(pg,p){
+    const N=book.pages.length;
+    nameIn('رقم الصفحة الهدف (1 – '+N+')',String(Math.min(N,book.pages.indexOf(pg)+2)),v=>{
+      const n=parseInt(String(v).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)),10);
+      if(!(n>=1&&n<=N)){gs('رقم الصفحة لازم يكون بين 1 و'+N);return}
+      if(book.pages[n-1]===pg){gs('اختر صفحة غير هاي الصفحة');return}
+      p.tg=book.pages[n-1].id;save();sync();gs('انربطت البوابة بصفحة '+n+' 🔗');
+    });
+  }
+  function menu(pg,p){
+    const t=tgPg(p),n=t?book.pages.indexOf(t)+1:0,it=[];
+    if(t){it.push(['👁 اعرض صفحة '+n+' (نافذة)',()=>openPip(t)]);it.push(['↗ انتقل لصفحة '+n,()=>goPg(n-1)])}
+    it.push([t?'🔗 غيّر الصفحة المربوطة':'🔗 اربطها بصفحة',()=>link(pg,p)]);
+    it.push(['🗑 احذف البوابة',()=>{pg.ptl=(pg.ptl||[]).filter(x=>x!==p);save();sync()}]);
+    pick(t?'بوابة ← صفحة '+n:'بوابة بدون ربط',it);
+  }
+  function mkCap(el,pg){
+    const cap=document.createElement('div');cap.className='ptcap';
+    let s=null,rb=null,rc=null,r=null;
+    cap.onpointerdown=e=>{e.preventDefault();rc=el.getBoundingClientRect();s=[clamp((e.clientX-rc.left)/rc.width,0,1),clamp((e.clientY-rc.top)/rc.width,0,pg.ar)];r=null;
+      rb=document.createElement('div');rb.className='ptrb';cap.append(rb);try{cap.setPointerCapture(e.pointerId)}catch(_){}};
+    cap.onpointermove=e=>{if(!s)return;
+      const c=[clamp((e.clientX-rc.left)/rc.width,0,1),clamp((e.clientY-rc.top)/rc.width,0,pg.ar)];
+      r=[Math.min(s[0],c[0]),Math.min(s[1],c[1]),Math.abs(s[0]-c[0]),Math.abs(s[1]-c[1])];
+      rb.style.left=r[0]*100+'%';rb.style.top=r[1]/pg.ar*100+'%';rb.style.width=r[2]*100+'%';rb.style.height=r[3]/pg.ar*100+'%'};
+    cap.onpointerup=e=>{if(!s)return;s=null;
+      if(r&&r[2]>.04&&r[3]>.02){const p={r,tg:null};(pg.ptl||(pg.ptl=[])).push(p);save();setPm(false);sync();gs('تم رسم البوابة ✓ اختر الصفحة الهدف');link(pg,p)}
+      else if(rb)rb.remove();
+      rb=null;r=null};
+    cap.onpointercancel=()=>{s=null;r=null;if(rb)rb.remove();rb=null};
+    el.append(cap);
+  }
+  function sync(){
+    if(!book)return;
+    [...pagesEl.children].forEach(el=>{
+      const pg=pgOf(el);if(!pg)return;
+      let lay=el.querySelector(':scope>.ptl');const L=pg.ptl||[];
+      const sig=JSON.stringify(L.map(p=>[p.r,p.tg,!!tgPg(p)]));
+      if(!L.length){if(lay)lay.remove()}
+      else if(!lay||lay.dataset.s!==sig){
+        if(lay)lay.remove();
+        lay=document.createElement('div');lay.className='ptl';lay.dataset.s=sig;
+        L.forEach(p=>{
+          const d=document.createElement('div'),t=tgPg(p);d.className='ptr'+(t?' ok':'');
+          d.style.cssText='left:'+p.r[0]*100+'%;top:'+p.r[1]/pg.ar*100+'%;width:'+p.r[2]*100+'%;height:'+p.r[3]/pg.ar*100+'%';
+          const b=document.createElement('b');b.textContent=t?'→ '+(book.pages.indexOf(t)+1):'🔮';b.title='بوابة';
+          b.onclick=e=>{e.stopPropagation();t?openPip(t):menu(pg,p)};
+          b.oncontextmenu=e=>{e.preventDefault();menu(pg,p)};
+          let lp=0;b.onpointerdown=e=>{e.stopPropagation();clearTimeout(lp);lp=setTimeout(()=>{lp=-1;menu(pg,p)},550)};
+          b.onpointerup=b.onpointerleave=b.onpointercancel=()=>{clearTimeout(lp)};
+          d.append(b);lay.append(d)});
+        el.append(lay);
+      }
+      const cap=el.querySelector(':scope>.ptcap');
+      if(pm&&!cap)mkCap(el,pg);else if(!pm&&cap)cap.remove();
+    });
+  }
+  function setPm(v){pm=v;const b=$('ptBtn');if(b)b.classList.toggle('on',pm);sync();if(pm)gs('وضع البوابات: ارسم مستطيل حول السؤال');}
+
+  const bt=document.createElement('button');bt.id='ptBtn';bt.type='button';
+  bt.title='بوابات: ارسم مستطيل حول سؤال واربطه بصفحة ثانية (ضغطة على 🔮 بتفتح الصفحة، وضغطة مطوّلة بتفتح الخيارات)';
+  bt.innerHTML='<span style="font-size:20px;line-height:23px">🔮</span><small>بوابات</small>';
+  bt.onclick=()=>setPm(!pm);
+  const tap=document.querySelector('#tools [data-t=tap]');
+  if(tap)tap.after(bt);else $('tools').append(bt);
+  $('tools').addEventListener('click',e=>{if(pm&&e.target.closest('[data-t]'))setPm(false)},true);
+  new MutationObserver(()=>{clearTimeout(tm);tm=setTimeout(sync,60)}).observe(pagesEl,{childList:true});
+  sync();
+})();
+/* ===== القلم المرئي (Pen Cursor) =====
+   لما تكتب بأي قلم حبر بيظهر رسم قلم صغير ماشي مع رأس الخط، ولونه لون القلم الحالي (بيبين بتسجيل الشاشة والدروس).
+   بيظهر بس أثناء الضغط على صفحة، ومخفي بالأدوات الثانية (ممحاة، تحديد، ليزر، بوابات...) وبلمس التمرير بالإصبع.
+   بيتعطّل ويتفعّل من «⋯ المزيد ← أدوات». بيتذكّر اختيارك بـ localStorage('nbpcur').
+   بيستخدم من نفس الـIIFE: tool, color, po, penSeen, inkOn, gs */
+(function(){
+  const KEY='nbpcur',INK=['pen','ball','fine','pencil','marker','brush','hand','neon','hl'];
+  let on=true;try{on=localStorage.getItem(KEY)!=='0'}catch(e){}
+  const st=document.createElement('style');
+  st.textContent='#pnCur{position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;z-index:80;opacity:0;transition:opacity .28s}'
+  +'#pnCur.on{opacity:1;transition:none}'
+  +'#pnCur svg{position:absolute;left:-12px;top:-110px;overflow:visible;transform-origin:12px 110px;transform:rotate(22deg);filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))}';
+  document.head.append(st);
+  const el=document.createElement('div');el.id='pnCur';
+  el.innerHTML='<svg viewBox="0 0 24 110" width="24" height="110" aria-hidden="true">'
+  +'<polygon points="12,100 6.5,70 8.5,3 15.5,3 17.5,70" fill="#b9b9be" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>'
+  +'<polygon points="12,110 8.3,94 15.7,94" fill="var(--pc,#111)" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>'
+  +'<circle cx="12" cy="109" r="2.2" fill="var(--pc,#111)" stroke="#fff" stroke-width="1"/></svg>';
+  document.body.append(el);
+  let act=null;
+  const put=e=>{el.style.transform='translate('+e.clientX+'px,'+e.clientY+'px)'};
+  const ok=e=>on&&INK.includes(tool)&&e.isPrimary!==false&&!(e.pointerType==='touch'&&(penSeen||po))
+    &&e.target&&e.target.closest&&e.target.closest('#pages .page')&&!e.target.closest('.ptcap,.ptl b');
+  const off=()=>{act=null;el.classList.remove('on')};
+  document.addEventListener('pointerdown',e=>{
+    if(!ok(e)){return}
+    act=e.pointerId;el.style.setProperty('--pc',(typeof inkOn==='function'?inkOn(color):color)||'#111');put(e);el.classList.add('on')},true);
+  document.addEventListener('pointermove',e=>{if(act===e.pointerId)put(e)},true);
+  document.addEventListener('pointerup',e=>{if(act===e.pointerId)off()},true);
+  document.addEventListener('pointercancel',e=>{if(act===e.pointerId)off()},true);
+  addEventListener('blur',off);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)off()});
+  window.__pcur={get on(){return on},toggle(){on=!on;try{localStorage.setItem(KEY,on?'1':'0')}catch(e){}
+    if(!on)off();gs(on?'القلم المرئي: شغّال ✒️':'القلم المرئي: مطفي')}};
+})();
 /* ---------- pinch / wheel zoom ---------- */
 let pz=null;const tdist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
-view.addEventListener('touchstart',e=>{if(e.touches.length===2){const r=view.getBoundingClientRect();pagesEl.querySelectorAll('canvas').forEach(c=>c.dispatchEvent(new Event('nbcancel')));pz={sl:view.scrollLeft,st:view.scrollTop,d:tdist(e.touches),z:zoom,k:1,cx:(e.touches[0].clientX+e.touches[1].clientX)/2-r.left,cy:(e.touches[0].clientY+e.touches[1].clientY)/2-r.top};pz.a=zAnc(pz.cx,pz.cy);pinching=true;pagesEl.style.transformOrigin=(pz.cx+sxN())+'px '+(pz.cy+view.scrollTop)+'px'}},{passive:true});
+view.addEventListener('touchstart',e=>{if(e.touches.length===2){const r=view.getBoundingClientRect();pagesEl.querySelectorAll('canvas').forEach(c=>c.dispatchEvent(new Event('nbcancel')));pz={sl:view.scrollLeft,st:view.scrollTop,d:tdist(e.touches),z:zoom,k:1,cx:(e.touches[0].clientX+e.touches[1].clientX)/2-r.left,cy:(e.touches[0].clientY+e.touches[1].clientY)/2-r.top};pz.a=zAnc(pz.cx,pz.cy);pinching=true;{const pr=pagesEl.getBoundingClientRect();pagesEl.style.transformOrigin=(r.left+pz.cx-pr.left)+'px '+(r.top+pz.cy-pr.top)+'px'}}},{passive:true});
 view.addEventListener('touchmove',e=>{if(pz&&e.touches.length===2){e.preventDefault();pz.k=Math.max(ZMIN/pz.z,Math.min(ZMAX/pz.z,tdist(e.touches)/pz.d));pagesEl.style.transform='scale('+pz.k+')';zBadge(Math.round(pz.z*pz.k*100)+'%');const r=view.getBoundingClientRect(),nx=(e.touches[0].clientX+e.touches[1].clientX)/2-r.left,ny=(e.touches[0].clientY+e.touches[1].clientY)/2-r.top;pz.ex=nx;pz.ey=ny;view.scrollLeft=pz.sl+pz.cx-nx;view.scrollTop=pz.st+pz.cy-ny}},{passive:false});
 const endPinch=e=>{if(!pz||e.touches.length>=2)return;const p=pz;pz=null;pagesEl.style.transform='';pagesEl.style.transformOrigin='';try{if(Math.abs(p.k-1)>.02)setZoom(p.z*p.k,p.ex!=null?p.ex:p.cx,p.ey!=null?p.ey:p.cy,p.a)}finally{setTimeout(()=>{pinching=false},80)}};
 view.addEventListener('touchend',endPinch);view.addEventListener('touchcancel',endPinch);
