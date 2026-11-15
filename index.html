@@ -3353,6 +3353,7 @@ $('moreB').onclick=()=>pick('الدفتر',[
   'أدوات',
   ['🧮 حاسبة ورسم',mcl('calcB')],
   ['🔮 بوابات: اربط مستطيل بصفحة',mcl('ptBtn')],
+  ...(window.__portals&&window.__portals.count()?[['🗑 احذف كل بوابات هالصفحة ('+window.__portals.count()+')',()=>window.__portals.clearPage()]]:[]),
   [(window.__pcur&&window.__pcur.on?'✒️ القلم المرئي: شغّال (اضغط للإطفاء)':'✒️ القلم المرئي: مطفي (اضغط للتشغيل)'),()=>{if(window.__pcur)window.__pcur.toggle()}],
   ['✒️ مظهر القلم المرئي (حجم، شفافية، لون)',()=>{if(window.__pcur)window.__pcur.look()}],
   ['📖 دليل التطبيق (شرح كل الأدوات)',()=>{if(window.__guide)window.__guide.open()}],
@@ -5762,12 +5763,15 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
   +'#ptip .h{display:flex;align-items:center;gap:6px;padding:7px 10px;background:#8b5cf6;color:#fff;font-weight:700;font-size:14px}'
   +'#ptip .h span{flex:1}'
   +'#ptip .h button{background:rgba(255,255,255,.22);border:0;color:#fff;border-radius:8px;padding:4px 10px;font-size:13px;cursor:pointer}'
-  +'#ptip .b{overflow:auto;flex:1}#ptip canvas{display:block;width:100%}';
+  +'#ptip .b{overflow:auto;flex:1}#ptip canvas{display:block;width:100%}'
+  +'.ptr b.m{left:30px;min-width:30px;padding:0;background:#4b2fa8;font-size:17px}.ptr.ok b.m{background:#047857}'
+  +'#ptUn{position:fixed;left:50%;transform:translateX(-50%);bottom:150px;z-index:130;display:flex;align-items:center;gap:10px;background:#222;color:#fff;border-radius:12px;padding:9px 14px;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.35)}'
+  +'#ptUn button{background:#8b5cf6;color:#fff;border:0;border-radius:8px;padding:5px 12px;font-size:14px;cursor:pointer}';
   document.head.append(st);
 
   const tgPg=p=>book&&book.pages.find(x=>x.id===p.tg);
   const closePip=()=>{const o=$('ptip');if(o)o.remove()};
-  function openPip(t){
+  function openPip(t,pg,p){
     closePip();
     const n=book.pages.indexOf(t)+1,W=Math.round(340*Math.min(2,window.devicePixelRatio||1));
     const box=document.createElement('div');box.id='ptip';
@@ -5775,7 +5779,8 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
     const s=document.createElement('span');s.textContent='🔮 صفحة '+n;
     const go=document.createElement('button');go.textContent='انتقال ↗';go.onclick=()=>{closePip();goPg(book.pages.indexOf(t))};
     const x=document.createElement('button');x.textContent='✕';x.onclick=closePip;
-    h.append(s,go,x);
+    const mn=document.createElement('button');mn.textContent='⋯';mn.title='خيارات البوابة (تغيير الربط، حذف)';mn.onclick=()=>{if(pg&&p)menu(pg,p)};
+    h.append(s,go);if(pg&&p)h.append(mn);h.append(x);
     const b=document.createElement('div');b.className='b';
     const cv=document.createElement('canvas');cv.width=W;cv.height=Math.round(W*t.ar);
     b.append(cv);box.append(h,b);document.body.append(box);
@@ -5791,11 +5796,21 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
       p.tg=book.pages[n-1].id;save();sync();gs('انربطت البوابة بصفحة '+n+' 🔗');
     });
   }
+  /* حذف مع تراجع: بنحفظ نسخة من القائمة وبنعرض رسالة «تراجع» ست ثواني */
+  let unT=0;
+  function delPortals(pg,list){
+    const snap=(pg.ptl||[]).slice();pg.ptl=snap.filter(x=>!list.includes(x));save();closePip();sync();
+    const o=$('ptUn');if(o)o.remove();clearTimeout(unT);
+    const b=document.createElement('div');b.id='ptUn';const m=document.createElement('span');m.textContent=list.length>1?'انحذفت '+list.length+' بوابات':'انحذفت البوابة';
+    const u=document.createElement('button');u.textContent='↩ تراجع';u.onclick=()=>{clearTimeout(unT);b.remove();pg.ptl=snap;save();sync();gs('رجعت البوابة ✓')};
+    b.append(m,u);document.body.append(b);unT=setTimeout(()=>b.remove(),6000);
+  }
   function menu(pg,p){
     const t=tgPg(p),n=t?book.pages.indexOf(t)+1:0,it=[];
-    if(t){it.push(['👁 اعرض صفحة '+n+' (نافذة)',()=>openPip(t)]);it.push(['↗ انتقل لصفحة '+n,()=>goPg(n-1)])}
+    if(t){it.push(['👁 اعرض صفحة '+n+' (نافذة)',()=>openPip(t,pg,p)]);it.push(['↗ انتقل لصفحة '+n,()=>goPg(n-1)])}
     it.push([t?'🔗 غيّر الصفحة المربوطة':'🔗 اربطها بصفحة',()=>link(pg,p)]);
-    it.push(['🗑 احذف البوابة',()=>{pg.ptl=(pg.ptl||[]).filter(x=>x!==p);save();sync()}]);
+    it.push(['🗑 احذف البوابة',()=>delPortals(pg,[p])]);
+    if((pg.ptl||[]).length>1)it.push(['🗑 احذف كل بوابات هالصفحة ('+pg.ptl.length+')',()=>delPortals(pg,pg.ptl.slice())]);
     pick(t?'بوابة ← صفحة '+n:'بوابة بدون ربط',it);
   }
   function mkCap(el,pg){
@@ -5828,11 +5843,14 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
           const d=document.createElement('div'),t=tgPg(p);d.className='ptr'+(t?' ok':'');
           d.style.cssText='left:'+p.r[0]*100+'%;top:'+p.r[1]/pg.ar*100+'%;width:'+p.r[2]*100+'%;height:'+p.r[3]/pg.ar*100+'%';
           const b=document.createElement('b');b.textContent=t?'→ '+(book.pages.indexOf(t)+1):'🔮';b.title='بوابة';
-          b.onclick=e=>{e.stopPropagation();t?openPip(t):menu(pg,p)};
+          let long=false;
+          b.onclick=e=>{e.stopPropagation();if(long){long=false;return}t?openPip(t,pg,p):menu(pg,p)};
           b.oncontextmenu=e=>{e.preventDefault();menu(pg,p)};
-          let lp=0;b.onpointerdown=e=>{e.stopPropagation();clearTimeout(lp);lp=setTimeout(()=>{lp=-1;menu(pg,p)},550)};
+          let lp=0;b.onpointerdown=e=>{e.stopPropagation();long=false;clearTimeout(lp);lp=setTimeout(()=>{long=true;menu(pg,p)},550)};
           b.onpointerup=b.onpointerleave=b.onpointercancel=()=>{clearTimeout(lp)};
-          d.append(b);lay.append(d)});
+          const mb=document.createElement('b');mb.className='m';mb.textContent='⋯';mb.title='خيارات البوابة (تغيير الربط، حذف)';
+          mb.onclick=e=>{e.stopPropagation();menu(pg,p)};mb.onpointerdown=e=>e.stopPropagation();
+          d.append(b,mb);lay.append(d)});
         el.append(lay);
       }
       const cap=el.querySelector(':scope>.ptcap');
@@ -5849,6 +5867,8 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
   if(tap)tap.after(bt);else $('tools').append(bt);
   $('tools').addEventListener('click',e=>{if(pm&&e.target.closest('[data-t]'))setPm(false)},true);
   new MutationObserver(()=>{clearTimeout(tm);tm=setTimeout(sync,60)}).observe(pagesEl,{childList:true});
+  window.__portals={count(){const g=book&&book.pages[typeof curPg==='number'?curPg:0];return g&&g.ptl?g.ptl.length:0},
+    clearPage(){const g=book&&book.pages[typeof curPg==='number'?curPg:0];if(!g||!(g.ptl||[]).length){gs('ما في بوابات بهالصفحة');return}delPortals(g,g.ptl.slice())}};
   sync();
 })();
 /* ===== القلم المرئي (Pen Cursor) =====
