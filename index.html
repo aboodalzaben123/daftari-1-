@@ -6003,7 +6003,7 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
     if(cfg.ah){const idle=performance.now()-lastMv>2000;if(idle&&shown){shown=false;el.classList.remove('on')}else if(!idle&&!shown){shown=true;el.classList.add('on')}}
     raf=requestAnimationFrame(tick)};
   const ok=e=>on&&INK.includes(tool)&&e.isPrimary!==false&&!(e.pointerType==='touch'&&(penSeen||po))
-    &&e.target&&e.target.closest&&e.target.closest('#pages .page')&&!e.target.closest('.ptcap,.ptl b,.ptr.ed');
+    &&e.target&&e.target.closest&&e.target.closest('#pages .page')&&!e.target.closest('.ptcap,.ptl b,.ptr.ed,.rpcov');
   const off=()=>{act=null;shown=false;el.classList.remove('on','hv');clearTimeout(hvT);setTimeout(clearTr,300)};
   document.addEventListener('pointerdown',e=>{
     if(!ok(e)){return}
@@ -6016,7 +6016,7 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
     if(act===e.pointerId){pen(e);tgt=clamp(tgt+(e.clientX-lx)*.9-Math.abs(e.clientY-ly)*.12,bs-24,bs+24);lx=e.clientX;ly=e.clientY;lastMv=performance.now();put(e);return}
     /* تحويم: نقطة ملوّنة بدل القلم لما القلم فوق الصفحة بدون لمس */
     if(act===null&&cfg.hv&&on&&INK.includes(tool)&&e.buttons===0&&(e.pointerType==='pen'||e.pointerType==='mouse')
-      &&e.target&&e.target.closest&&e.target.closest('#pages .page')&&!e.target.closest('.ptcap,.ptl b,.ptr.ed')){
+      &&e.target&&e.target.closest&&e.target.closest('#pages .page')&&!e.target.closest('.ptcap,.ptl b,.ptr.ed,.rpcov')){
       el.style.setProperty('--pc',(typeof inkOn==='function'?inkOn(color):color)||'#111');cx=px=e.clientX;cy=py=e.clientY;setPos();
       el.classList.add('hv','on');clearTimeout(hvT);hvT=setTimeout(()=>{if(act===null)el.classList.remove('on','hv')},1500)}
     else if(act===null&&el.classList.contains('hv')){el.classList.remove('on','hv')}},true);
@@ -6029,6 +6029,12 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
   const sync=()=>{tg.classList.toggle('on',on);tg.setAttribute('aria-pressed',on?'true':'false')};
   const mb=document.getElementById('moreB');if(mb&&mb.parentNode)mb.parentNode.insertBefore(tg,mb);
   const api=window.__pcur={get on(){return on},get cfg(){return Object.assign({},cfg)},
+    /* (v13.43) بتستعملها إعادة العرض (جزء 28d): بتحرّك القلم لنقطة على الشاشة بدون لمس حقيقي. تحترم زر ✒️ (لو مطفي ما بتعمل شي) */
+    drive(x,y,c,k){if(!on)return;build(KIND[k]||'pen');el.style.setProperty('--pc',c||'#111');
+      if(!el.classList.contains('on')){bs=22;pr=1;ang=tgt=22;el.style.setProperty('--pa','22deg');el.style.setProperty('--ps',SZ[cfg.sz][1]);el.classList.add('on')}
+      else{tgt=clamp(tgt+(x-px)*.9,bs-24,bs+24);tgt=bs+(tgt-bs)*.9;ang+=(tgt-ang)*.3;el.style.setProperty('--pa',ang.toFixed(1)+'deg')}
+      cx=px=x;cy=py=y;setPos()},
+    release(){if(act===null){el.classList.remove('on','hv')}},
     toggle(){on=!on;try{localStorage.setItem(KEY,on?'1':'0')}catch(e){}
       if(!on)off();sync();gs(on?'القلم المرئي: شغّال ✒️':'القلم المرئي: مطفي')},
     /* حوار المظهر: كل خيار بيتبدّل بالكبسة وبيرجع الحوار مفتوح */
@@ -6045,6 +6051,150 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
         ['🔴 نقطة تحويم بقلم الآيباد: '+OO('hv'),tg2('hv')],
         ['↺ رجّع الافتراضي',()=>{cfg=Object.assign({},DEF);saveCfg();look();api.look()}]])}};
   tg.onclick=api.toggle;sync();
+})();
+/* ===== 🎬 عرض الصفحة للتسجيل: إعادة عرض + كشف بالنقر (دفعة 1) =====
+   زر 🎬 بالشريط العلوي بيفتح قائمة:
+   ▶ إعادة عرض: الصفحة بتتخفّى وبترجع ترسم لحالها خط خط بالترتيب، والقلم المرئي (✒️ جزء 28c) ماشي مع رأس الخط.
+        تحكم: إيقاف/متابعة (زر أو نقرة على الصفحة)، سرعة (بطيء/عادي/سريع)، إعادة من الأول.
+   👁 كشف بالنقر: الصفحة مخفية، وكل نقرة (أو زر ▶) بتكشف السطر اللي بعده («سطر سطر») أو الخط اللي بعده («خط خط»). ◀ للرجوع.
+   الأمان: ما في أي تعديل على pg.items ولا على الصفحة نفسها. كل شي بينرسم على كانفاس «غطاء» (.rpcov) فوق الصفحة،
+   وبينشال بالخروج، فالحفظ والتراجع والتصدير ما بيتأثروا أبداً.
+   السرعة بتتحسب من طول الخط (مش من توقيت كتابتك الأصلي). التسجيل بالتوقيت الأصلي = دفعة 3.
+   التجميع «سطر سطر» تقديري (حسب الارتفاع)، والتجميع بإشارة فاصلة = دفعة 2.
+   التخزين: localStorage('nbrps') السرعة، ('nbrpg') التجميع 0=سطر 1=خط.
+   بيستخدم من نفس الـIIFE: book, DOM, view, pick, gs, drawPage, drawItem, inkOn, mk. و window.__pcur.drive/release من 28c */
+(function(){
+  const SPD=[['بطيء 🐢',.35],['عادي 🚶',.7],['سريع 🐇',1.6]];
+  let spd=1,grain=0;
+  try{const a=localStorage.getItem('nbrps'),b=localStorage.getItem('nbrpg');if(a!==null&&/^[0-9]$/.test(a)&&+a<SPD.length)spd=+a;if(b==='1')grain=1}catch(e){}
+  const keep=()=>{try{localStorage.setItem('nbrps',spd);localStorage.setItem('nbrpg',grain)}catch(e){}};
+  const css=document.createElement('style');
+  css.textContent='.page canvas.rpcov{position:absolute;left:0;top:0;width:100%;height:100%;touch-action:pan-y;cursor:pointer}'
+  +'#rpBar{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:90;display:flex;gap:4px;align-items:center;padding:5px 7px;border-radius:999px;background:rgba(28,28,34,.88);color:#fff;font:600 14px/1 system-ui,sans-serif;direction:rtl;box-shadow:0 6px 22px rgba(0,0,0,.35);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);max-width:96vw}'
+  +'#rpBar button{all:unset;cursor:pointer;min-width:40px;height:40px;padding:0 10px;box-sizing:border-box;border-radius:999px;text-align:center;display:inline-flex;align-items:center;justify-content:center;font-size:17px;white-space:nowrap}'
+  +'#rpBar button:active{background:rgba(255,255,255,.2)}#rpBar button[disabled]{opacity:.35}'
+  +'#rpBar .rpn{background:#2f5bea;font-size:18px;min-width:52px}#rpBar .rpc{font-size:13px;opacity:.9;min-width:46px;text-align:center}'
+  +'#rpBar.min{opacity:.2;padding:3px}#rpBar.min>*{display:none}#rpBar.min>.rpm{display:inline-flex}';
+  document.head.append(css);
+  let S=null;
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const plen=p=>{let L=0;for(let i=1;i<p.length;i++)L+=Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]);return L};
+  const isS=it=>it.k==='s'&&Array.isArray(it.p)&&it.p.length>0&&!it.pl;
+  const anim=it=>(isS(it)&&it.p.length>1)||(it.k==='l'&&Array.isArray(it.p)&&it.p.length===2);
+  /* نسخة جزئية من الخط (بدون ما نلمس الأصل): من أول الخط لحد نسبة f من طوله */
+  const part=(it,f)=>{const p=it.p,n=p.length;if(f>=1||n<2)return it;
+    const T=plen(p)*Math.max(0,f);let a=0;const out=[p[0]];
+    for(let i=1;i<n;i++){const s=Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]);
+      if(a+s>=T){const r=s?(T-a)/s:0,q=[];for(let j=0;j<p[i].length;j++)q.push(p[i-1][j]+(p[i][j]-p[i-1][j])*r);out.push(q);break}
+      a+=s;out.push(p[i])}
+    return Object.assign({},it,{p:out})};
+  const timeline=(items,v)=>{const k=.7/v,T=[];let t=300*k;
+    items.forEach(it=>{const a=anim(it);let d=0;if(a)d=Math.min(3500*k,Math.max(130*k,plen(it.p)/v*1000));
+      T.push({it,s:t,e:t+d,a});t+=d+(a?70*k:260*k)});
+    return{T,total:t}};
+  /* الصفحة الأكثر ظهوراً بالشاشة */
+  const vis=()=>{const vr=view.getBoundingClientRect();let best=null,bv=0;
+    book.pages.forEach(pg=>{const d=DOM.get(pg.id);if(!d||!d.el||!d.el.isConnected)return;const r=d.el.getBoundingClientRect(),h=Math.min(r.bottom,vr.bottom)-Math.max(r.top,vr.top);if(h>bv){bv=h;best=pg}});
+    return best};
+  const alive=()=>S&&S.d.el.isConnected&&S.cov.isConnected&&DOM.get(S.pg.id)===S.d&&book.pages.includes(S.pg);
+  const paintBase=n=>{const pg=S.pg,all=n>=S.items.length;
+    drawPage.lv=0;try{drawPage(S.bx,all?pg:Object.assign({},pg,{items:S.items.slice(0,n)}),S.base.width)}finally{drawPage.lv=0}};
+  const blit=()=>{S.g.drawImage(S.base,0,0)};
+  /* لو تغيّر حجم كانفاس الصفحة (تكبير/تصغير) بنعيد حجم الغطاء ونرسم من جديد */
+  const fit=()=>{const c=S.d.cv;if(c.width>10&&(S.cov.width!==c.width||S.cov.height!==c.height)){S.cov.width=S.base.width=c.width;S.cov.height=S.base.height=c.height;paintBase(S.n());blit()}};
+  const pcur=()=>window.__pcur;
+  const tipTo=(it,q)=>{const P=pcur();if(!P||!P.drive)return;const r=S.cov.getBoundingClientRect(),x=r.left+q[0]*r.width,y=r.top+q[1]*r.width;
+    P.drive(x,y,(typeof inkOn==='function'?inkOn(it.c):it.c)||'#111',it.ne?'neon':it.a===.35?'hl':'pen');
+    const vr=view.getBoundingClientRect(),now=performance.now();
+    if((y>vr.bottom-100||y<vr.top+50)&&now-S.sc>700){S.sc=now;try{view.scrollBy({top:y-(vr.top+vr.height*.4),behavior:'smooth'})}catch(e){}}};
+  const hideTip=()=>{const P=pcur();if(P&&P.release)P.release()};
+  const mkB=(t,f,c,ti)=>{const b=document.createElement('button');b.type='button';b.textContent=t;if(c)b.className=c;if(ti)b.title=ti;b.onclick=e=>{e.stopPropagation();f()};return b};
+  const stop=()=>{if(!S)return;const s=S;S=null;if(s.raf)cancelAnimationFrame(s.raf);clearInterval(s.iv);document.removeEventListener('keydown',s.kd,true);hideTip();
+    try{s.cov.remove()}catch(e){}try{s.bar.remove()}catch(e){}};
+  const open=(mode)=>{
+    if(S)stop();
+    const pg=vis();if(!pg){gs('ما في صفحة ظاهرة');return null}
+    const d=DOM.get(pg.id);
+    if(pg.live){gs('الصفحة الحيّة (HTML) ما بتدعم العرض بهالدفعة');return null}
+    if(!d||!d.g||d.cv.width<=10){gs('مرّر لحد ما تظهر الصفحة وجرّب تاني');return null}
+    if(!pg.items.length){gs('ما في شي مكتوب بالصفحة');return null}
+    const cov=document.createElement('canvas');cov.className='rpcov';cov.width=d.cv.width;cov.height=d.cv.height;
+    const base=document.createElement('canvas');base.width=cov.width;base.height=cov.height;
+    const bar=document.createElement('div');bar.id='rpBar';
+    S={pg,d,cov,base,g:cov.getContext('2d'),bx:base.getContext('2d'),bar,mode,items:pg.items.slice(),sc:0,raf:0,iv:0,kd:null,n:()=>0};
+    d.el.insertBefore(cov,d.el.querySelector('.pn')||null);
+    document.body.append(bar);
+    S.iv=setInterval(()=>{if(!alive()){stop();return}fit()},700);
+    return S};
+  /* ======== إعادة العرض ======== */
+  const startReplay=()=>{
+    const s=open('r');if(!s)return;
+    const v=SPD[spd][1],tl=timeline(s.items,v);Object.assign(s,{T:tl.T,total:tl.total,t:0,ci:0,playing:true,fin:false,last:performance.now()});
+    s.n=()=>s.ci;paintBase(0);blit();
+    const pp=mkB('⏸',()=>toggle(),'','إيقاف مؤقت / متابعة'),sp=mkB(SPD[spd][0],()=>{spd=(spd+1)%SPD.length;keep();reSpd()},'','السرعة');
+    const rs=mkB('⏮',()=>restart(),'','من الأول'),ex=mkB('✕',stop,'','خروج'),mn=mkB('⌄',()=>s.bar.classList.add('min'),'rpm','إخفاء الشريط');
+    s.bar.append(ex,rs,pp,sp,mn);s.bar.onclick=()=>s.bar.classList.remove('min');s.pp=pp;s.sp=sp;
+    s.cov.onclick=()=>toggle();
+    s.kd=e=>{if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target&&e.target.tagName))return;if(e.key==='Escape')stop();else if(e.key===' '){e.preventDefault();toggle()}};
+    document.addEventListener('keydown',s.kd,true);
+    gs('▶ إعادة العرض. اضغط الصفحة للإيقاف/المتابعة');
+    s.raf=requestAnimationFrame(frame)};
+  const paintBtn=()=>{if(S&&S.pp)S.pp.textContent=S.fin?'↺':S.playing?'⏸':'▶';if(S&&S.sp)S.sp.textContent=SPD[spd][0]};
+  const toggle=()=>{if(!S||S.mode!=='r')return;if(S.fin){restart();return}
+    S.playing=!S.playing;paintBtn();if(S.playing){S.last=performance.now();if(!S.raf)S.raf=requestAnimationFrame(frame)}else{hideTip()}};
+  const restart=()=>{if(!S||S.mode!=='r')return;S.t=0;S.ci=0;S.fin=false;S.playing=true;S.last=performance.now();paintBase(0);blit();hideTip();paintBtn();if(!S.raf)S.raf=requestAnimationFrame(frame)};
+  /* تغيير السرعة وسط العرض: بنكمّل من نفس المكان */
+  const reSpd=()=>{if(!S||S.mode!=='r'){paintBtn();return}
+    const cur=S.T[S.ci];let f=0;if(cur&&cur.e>cur.s&&S.t>cur.s)f=(S.t-cur.s)/(cur.e-cur.s);
+    const tl=timeline(S.items,SPD[spd][1]);S.T=tl.T;S.total=tl.total;const nc=S.T[S.ci];S.t=nc?nc.s+f*(nc.e-nc.s):tl.total;paintBtn()};
+  const frame=now=>{
+    if(!S)return;S.raf=0;
+    if(!alive()){stop();return}
+    try{
+      fit();const dt=Math.min(100,now-S.last);S.last=now;if(S.playing)S.t+=dt;
+      const T=S.T,cw=S.base.width;let i=S.ci;
+      while(i<T.length&&S.t>=T[i].e){drawItem(S.bx,T[i].it,cw);i++}
+      S.ci=i;blit();
+      if(i<T.length&&S.t>=T[i].s&&T[i].a){const x=T[i],pi=part(x.it,(S.t-x.s)/(x.e-x.s));drawItem(S.g,pi,cw);tipTo(x.it,pi.p[pi.p.length-1])}
+      if(i>=T.length&&S.t>=S.total){S.playing=false;S.fin=true;paintBase(S.items.length);blit();hideTip();paintBtn();gs('✓ خلصت إعادة العرض');return}
+    }catch(e){try{window.__ERRLOG&&__ERRLOG.add('replay',e&&e.message||e,'frame',e&&e.stack)}catch(_){}stop();gs('تعذّر عرض الصفحة: '+(e&&e.message||e));return}
+    if(S.playing)S.raf=requestAnimationFrame(frame)};
+  /* ======== كشف بالنقر ======== */
+  const mkSteps=(items,g)=>{const st=[];let cur=null;
+    items.forEach((it,i)=>{
+      if(g===0&&isS(it)&&it.a!==.35){
+        const ys=it.p.map(q=>q[1]),y0=Math.min(...ys),y1=Math.max(...ys),cy=(y0+y1)/2,h=y1-y0;
+        if(cur&&cur.line&&Math.abs(cy-cur.cy/cur.n)<=Math.max(.022,cur.h/cur.n*.8)){cur.b=i+1;cur.cy+=cy;cur.h+=h;cur.n++}
+        else{cur={a:i,b:i+1,line:true,cy,h,n:1};st.push(cur)}
+      }else{cur=null;st.push({a:i,b:i+1})}});
+    return st};
+  const startReveal=(g)=>{
+    const s=open('v');if(!s)return;
+    grain=g;keep();Object.assign(s,{steps:mkSteps(s.items,grain),si:0});
+    s.n=()=>s.si?s.steps[s.si-1].b:0;paintBase(0);blit();
+    const nx=mkB('▶',()=>go(1),'rpn','الخطوة الجاية'),pv=mkB('◀',()=>go(-1),'','رجوع'),cn=document.createElement('span');cn.className='rpc';
+    const gr=mkB('',()=>regroup(),'','سطر سطر / خط خط'),rs=mkB('⏮',()=>goTo(0),'','من الأول'),ex=mkB('✕',stop,'','خروج'),mn=mkB('⌄',()=>s.bar.classList.add('min'),'rpm','إخفاء الشريط');
+    s.bar.append(ex,rs,pv,cn,nx,gr,mn);s.bar.onclick=()=>s.bar.classList.remove('min');Object.assign(s,{nx,pv,cn,gr});
+    s.cov.onclick=()=>go(1);
+    s.kd=e=>{if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target&&e.target.tagName))return;const k=e.key;
+      if(k==='Escape')stop();else if(k===' '||k==='Enter'||k==='ArrowRight'||k==='ArrowDown'||k==='PageDown'){e.preventDefault();go(1)}else if(k==='ArrowLeft'||k==='ArrowUp'||k==='PageUp'){e.preventDefault();go(-1)}};
+    document.addEventListener('keydown',s.kd,true);
+    uiV();gs('👁 اضغط الصفحة (أو ▶) لكشف الخطوة الجاية');
+  };
+  const uiV=()=>{if(!S||S.mode!=='v')return;S.cn.textContent=S.si+'/'+S.steps.length;S.pv.disabled=S.si<=0;S.nx.disabled=S.si>=S.steps.length;S.gr.textContent=grain?'خط خط':'سطر سطر'};
+  const goTo=i=>{if(!S||S.mode!=='v')return;S.si=clamp(i,0,S.steps.length);fit();paintBase(S.n());blit();uiV()};
+  const go=d=>{if(!S||S.mode!=='v')return;if(d>0&&S.si>=S.steps.length){gs('✓ خلصت كل الخطوات');return}goTo(S.si+d)};
+  const regroup=()=>{if(!S||S.mode!=='v')return;const n=S.n();grain=grain?0:1;keep();S.steps=mkSteps(S.items,grain);S.si=S.steps.filter(x=>x.b<=n).length;goTo(S.si);gs(grain?'التجميع: خط خط':'التجميع: سطر سطر')};
+  /* زر 🎬 بالشريط العلوي */
+  const tg=document.createElement('button');tg.id='rpTg';tg.type='button';tg.textContent='🎬';tg.title='عرض الصفحة للتسجيل (إعادة عرض / كشف بالنقر)';
+  const mb=document.getElementById('moreB');if(mb&&mb.parentNode)mb.parentNode.insertBefore(tg,mb);
+  tg.onclick=()=>{if(S){stop();return}
+    pick('🎬 عرض الصفحة للتسجيل',[
+      ['▶ إعادة عرض الصفحة (القلم يرسم خطوة خطوة)',startReplay],
+      ['👁 كشف بالنقر: سطر سطر',()=>startReveal(0)],
+      ['👁 كشف بالنقر: خط خط',()=>startReveal(1)],
+      'بيشتغل على الصفحة الظاهرة. ما بيغيّر شي بالصفحة، وبتطلع منه بزر ✕ أو Esc.'])};
+  window.__replay={start:startReplay,reveal:startReveal,stop,get active(){return S?S.mode:''}};
 })();
 /* ---------- pinch / wheel zoom ---------- */
 let pz=null;const tdist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
