@@ -3354,6 +3354,7 @@ $('moreB').onclick=()=>pick('الدفتر',[
   ['🧮 حاسبة ورسم',mcl('calcB')],
   ['🔮 بوابات: اربط مستطيل بصفحة',mcl('ptBtn')],
   [(window.__pcur&&window.__pcur.on?'✒️ القلم المرئي: شغّال (اضغط للإطفاء)':'✒️ القلم المرئي: مطفي (اضغط للتشغيل)'),()=>{if(window.__pcur)window.__pcur.toggle()}],
+  ['✒️ مظهر القلم المرئي (حجم، شفافية، لون)',()=>{if(window.__pcur)window.__pcur.look()}],
   ['📖 دليل التطبيق (شرح كل الأدوات)',()=>{if(window.__guide)window.__guide.open()}],
   ['❓ وضع المساعدة (المس أداة لتعرف شو بتعمل)',()=>{if(window.__guide)window.__guide.help()}],
   ['⚙ إعدادات اللمس ›',()=>pick('إعدادات اللمس',[
@@ -5851,39 +5852,120 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
   sync();
 })();
 /* ===== القلم المرئي (Pen Cursor) =====
-   لما تكتب بأي قلم حبر بيظهر رسم قلم صغير ماشي مع رأس الخط، ولونه لون القلم الحالي (بيبين بتسجيل الشاشة والدروس).
+   لما تكتب بأي قلم حبر بيظهر رسم قلم ماشي مع رأس الخط، ولونه لون القلم الحالي (بيبين بتسجيل الشاشة والدروس).
    بيظهر بس أثناء الضغط على صفحة، ومخفي بالأدوات الثانية (ممحاة، تحديد، ليزر، بوابات...) وبلمس التمرير بالإصبع.
-   بيتعطّل ويتفعّل من «⋯ المزيد ← أدوات». بيتذكّر اختيارك بـ localStorage('nbpcur').
-   بيستخدم من نفس الـIIFE: tool, color, po, penSeen, inkOn, gs */
+   (v13.39 دفعة الشكل) ميلان مع الحركة، ظل، شكل حسب نوع القلم، خيارات الحجم/الشفافية/لون الجسم («⋯ المزيد ← أدوات ← ✒️ مظهر القلم»)،
+   وزر ✒️ بالشريط العلوي بنقرة وحدة للتشغيل/الإطفاء.
+   (v13.40 دفعة التسجيل والتقنية) نبضة عند اللمس، أثر خلف القلم، تنعيم الحركة، إخفاء تلقائي بعد التوقف، نقطة تحويم بقلم الآيباد،
+   وضغط وميلان Apple Pencil الحقيقيين (بيشتغلوا بس لو الجهاز بيبعتهم، وإلا بيضل الشكل العادي).
+   التخزين: localStorage('nbpcur') تشغيل/إطفاء، و('nbpcs') خيارات JSON {sz,op,bd,pl,tr,sm,ah,hv}.
+   بيستخدم من نفس الـIIFE: tool, color, po, penSeen, inkOn, gs, pick */
 (function(){
-  const KEY='nbpcur',INK=['pen','ball','fine','pencil','marker','brush','hand','neon','hl'];
+  const KEY='nbpcur',KS='nbpcs',INK=['pen','ball','fine','pencil','marker','brush','hand','neon','hl'];
+  const KIND={pen:'pen',ball:'pen',hand:'pen',fine:'fine',pencil:'pencil',marker:'marker',hl:'hl',brush:'brush',neon:'neon'};
+  const SZ=[['صغير',.75],['عادي',1],['كبير',1.4]],OP=[['كامل',1],['شفاف شوي',.7],['شفاف',.45]],BD=[['رمادي','#b9b9be'],['أسود','#2a2a2e'],['أبيض','#f4f4f6']];
   let on=true;try{on=localStorage.getItem(KEY)!=='0'}catch(e){}
+  const DEF={sz:1,op:0,bd:0,pl:1,tr:0,sm:1,ah:0,hv:0};let cfg=Object.assign({},DEF);
+  try{const j=JSON.parse(localStorage.getItem(KS)||'{}');Object.keys(DEF).forEach(k=>{if(Number.isInteger(j[k])&&j[k]>=0)cfg[k]=j[k]})}catch(e){}
+  cfg.sz=Math.min(cfg.sz,SZ.length-1);cfg.op=Math.min(cfg.op,OP.length-1);cfg.bd=Math.min(cfg.bd,BD.length-1);['pl','tr','sm','ah','hv'].forEach(k=>{cfg[k]=cfg[k]?1:0});
+  const saveCfg=()=>{try{localStorage.setItem(KS,JSON.stringify(cfg))}catch(e){}};
   const st=document.createElement('style');
   st.textContent='#pnCur{position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;z-index:80;opacity:0;transition:opacity .28s}'
   +'#pnCur.on{opacity:1;transition:none}'
-  +'#pnCur svg{position:absolute;left:-12px;top:-110px;overflow:visible;transform-origin:12px 110px;transform:rotate(22deg);filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))}';
+  +'#pnCur:after{content:"";position:absolute;left:-15px;top:-3px;width:30px;height:10px;border-radius:50%;background:radial-gradient(ellipse at center,rgba(0,0,0,.38),rgba(0,0,0,0) 70%)}'
+  +'#pnCur svg{position:absolute;left:-20px;top:-110px;overflow:visible;transform-origin:20px 110px;transform:rotate(var(--pa,22deg)) scale(var(--ps,1));opacity:var(--po,1);filter:drop-shadow(3px 5px 3px rgba(0,0,0,.38))}'
+  +'#pnCur.k-neon svg{filter:drop-shadow(0 0 7px var(--pc,#0ff)) drop-shadow(3px 5px 3px rgba(0,0,0,.3))}'
+  +'#pnCur .pcP{position:absolute;left:-20px;top:-20px;width:40px;height:40px;box-sizing:border-box;border-radius:50%;border:3px solid var(--pc,#111);opacity:0;pointer-events:none}'
+  +'#pnCur .pcP.go{animation:pcpl .5s ease-out}@keyframes pcpl{from{opacity:.85;transform:scale(.25)}to{opacity:0;transform:scale(1.7)}}'
+  +'#pnCur .pcH{position:absolute;left:-7px;top:-7px;width:14px;height:14px;border-radius:50%;background:var(--pc,#111);box-shadow:0 0 0 3px rgba(255,255,255,.85),0 0 10px 3px var(--pc,#111);display:none}'
+  +'#pnCur.hv svg{display:none}#pnCur.hv .pcH{display:block}#pnCur.hv:after{display:none}'
+  +'#pnTr{position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:79}'
+  +'#pcTg{opacity:.5}#pcTg.on{opacity:1}';
   document.head.append(st);
-  const el=document.createElement('div');el.id='pnCur';
-  el.innerHTML='<svg viewBox="0 0 24 110" width="24" height="110" aria-hidden="true">'
-  +'<polygon points="12,100 6.5,70 8.5,3 15.5,3 17.5,70" fill="#b9b9be" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>'
-  +'<polygon points="12,110 8.3,94 15.7,94" fill="var(--pc,#111)" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>'
-  +'<circle cx="12" cy="109" r="2.2" fill="var(--pc,#111)" stroke="#fff" stroke-width="1"/></svg>';
-  document.body.append(el);
-  let act=null;
-  const put=e=>{el.style.transform='translate('+e.clientX+'px,'+e.clientY+'px)'};
+  const el=document.createElement('div');el.id='pnCur';document.body.append(el);
+  const pul=document.createElement('div');pul.className='pcP';const hvd=document.createElement('div');hvd.className='pcH';
+  const S='stroke="#fff" stroke-width="1.2" stroke-linejoin="round"';
+  const SV={
+    pen:'<polygon points="20,100 14.5,70 16.5,3 23.5,3 25.5,70" fill="var(--pb)" '+S+'/><polygon points="20,110 16.3,94 23.7,94" fill="var(--pc)" '+S+'/><circle cx="20" cy="109" r="2.2" fill="var(--pc)" stroke="#fff" stroke-width="1"/>',
+    fine:'<polygon points="20,100 17,70 18,3 22,3 23,70" fill="var(--pb)" '+S+'/><polygon points="20,110 18,95 22,95" fill="var(--pc)" '+S+'/>',
+    neon:'<polygon points="20,100 14.5,70 16.5,3 23.5,3 25.5,70" fill="var(--pb)" '+S+'/><polygon points="20,110 16.3,94 23.7,94" fill="var(--pc)" '+S+'/><circle cx="20" cy="109" r="3" fill="var(--pc)" stroke="#fff" stroke-width="1"/>',
+    pencil:'<polygon points="14,3 26,3 26,84 14,84" fill="#e9c46a" '+S+'/><line x1="20" y1="4" x2="20" y2="83" stroke="#c9a24a" stroke-width="1"/><polygon points="14,84 26,84 20,110" fill="#ecd7a8" '+S+'/><polygon points="18,102 22,102 20,110" fill="var(--pc)"/>',
+    marker:'<polygon points="11,3 29,3 31,70 9,70" fill="var(--pb)" '+S+'/><polygon points="9,70 31,70 26,90 14,90" fill="#8a8a92" '+S+'/><polygon points="14,90 26,90 23,110 17,110" fill="var(--pc)" '+S+'/>',
+    hl:'<polygon points="9,3 31,3 33,64 7,64" fill="var(--pb)" '+S+'/><polygon points="7,64 33,64 28,86 12,86" fill="#8a8a92" '+S+'/><polygon points="12,86 28,86 28,100 20,110 12,100" fill="var(--pc)" fill-opacity=".85" '+S+'/>',
+    brush:'<polygon points="16,3 24,3 23,76 17,76" fill="var(--pb)" '+S+'/><polygon points="17,76 23,76 24,90 16,90" fill="#cfcfd6" '+S+'/><path d="M16 90 Q15 100 20 110 Q25 100 24 90Z" fill="var(--pc)" '+S+'/>'};
+  let kind='';
+  const build=k=>{if(k===kind)return;kind=k;el.className=el.className.replace(/\bk-\w+/g,'').trim();el.classList.add('k-'+k);
+    el.innerHTML='<svg viewBox="0 0 40 110" width="40" height="110" aria-hidden="true">'+(SV[k]||SV.pen)+'</svg>';el.append(hvd,pul)};
+  const look=()=>{el.style.setProperty('--ps',SZ[cfg.sz][1]);el.style.setProperty('--po',OP[cfg.op][1]);el.style.setProperty('--pb',BD[cfg.bd][1])};
+  look();build('pen');
+  let act=null,lx=0,ly=0,ang=22,tgt=22,bs=22,raf=0,px=0,py=0,cx=0,cy=0,lastMv=0,hvT=0,shown=false,pr=1;
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const setPos=()=>{el.style.transform='translate('+cx.toFixed(1)+'px,'+cy.toFixed(1)+'px)'};
+  /* put: بيحدد الهدف، والتنعيم (cfg.sm) بيخلي القلم يلحقه بسلاسة بدل ما يرجف */
+  const put=(e,snap)=>{px=e.clientX;py=e.clientY;if(snap||!cfg.sm){cx=px;cy=py;setPos()}};
+  /* ضغط وميلان القلم الحقيقي (بس لو الجهاز بيبعتهم) */
+  const pen=e=>{bs=22;pr=1;if(e.pointerType==='pen'){if(e.pressure>0&&e.pressure!==.5)pr=.85+.4*e.pressure;if(e.tiltX)bs=22+clamp(e.tiltX*.35,-12,12)}
+    el.style.setProperty('--ps',(SZ[cfg.sz][1]*pr).toFixed(2))};
+  /* أثر خلف القلم: كانفاس بيتلاشى */
+  let tc=null,tx=null;
+  const trail=()=>{if(!cfg.tr){return}
+    if(!tc){tc=document.createElement('canvas');tc.id='pnTr';document.body.append(tc)}
+    if(tc.width!==innerWidth||tc.height!==innerHeight){tc.width=innerWidth;tc.height=innerHeight;tx=tc.getContext('2d')}
+    if(!tx)tx=tc.getContext('2d');
+    tx.globalCompositeOperation='destination-out';tx.fillStyle='rgba(0,0,0,.16)';tx.fillRect(0,0,tc.width,tc.height);
+    tx.globalCompositeOperation='source-over';tx.globalAlpha=.5;tx.fillStyle=getComputedStyle(el).getPropertyValue('--pc')||'#111';
+    tx.beginPath();tx.arc(cx,cy,5,0,6.2832);tx.fill();tx.globalAlpha=1};
+  const clearTr=()=>{if(tx&&tc)tx.clearRect(0,0,tc.width,tc.height)};
+  /* الميلان بيتبع سرعة الحركة وبيرجع تدريجياً، والتنعيم والأثر والإخفاء التلقائي بنفس الحلقة */
+  const tick=()=>{raf=0;if(act===null){return}
+    tgt=bs+(tgt-bs)*.86;ang+=(tgt-ang)*.22;el.style.setProperty('--pa',ang.toFixed(1)+'deg');
+    if(cfg.sm){cx+=(px-cx)*.55;cy+=(py-cy)*.55;if(Math.abs(px-cx)<.2&&Math.abs(py-cy)<.2){cx=px;cy=py}setPos()}
+    trail();
+    if(cfg.ah){const idle=performance.now()-lastMv>2000;if(idle&&shown){shown=false;el.classList.remove('on')}else if(!idle&&!shown){shown=true;el.classList.add('on')}}
+    raf=requestAnimationFrame(tick)};
   const ok=e=>on&&INK.includes(tool)&&e.isPrimary!==false&&!(e.pointerType==='touch'&&(penSeen||po))
     &&e.target&&e.target.closest&&e.target.closest('#pages .page')&&!e.target.closest('.ptcap,.ptl b');
-  const off=()=>{act=null;el.classList.remove('on')};
+  const off=()=>{act=null;shown=false;el.classList.remove('on','hv');clearTimeout(hvT);setTimeout(clearTr,300)};
   document.addEventListener('pointerdown',e=>{
     if(!ok(e)){return}
-    act=e.pointerId;el.style.setProperty('--pc',(typeof inkOn==='function'?inkOn(color):color)||'#111');put(e);el.classList.add('on')},true);
-  document.addEventListener('pointermove',e=>{if(act===e.pointerId)put(e)},true);
+    build(KIND[tool]||'pen');clearTimeout(hvT);el.classList.remove('hv');
+    act=e.pointerId;lx=e.clientX;ly=e.clientY;pen(e);ang=tgt=bs;lastMv=performance.now();shown=true;el.style.setProperty('--pa',bs+'deg');
+    el.style.setProperty('--pc',(typeof inkOn==='function'?inkOn(color):color)||'#111');put(e,true);el.classList.add('on');
+    if(cfg.pl){pul.classList.remove('go');void pul.offsetWidth;pul.classList.add('go')}
+    if(!raf)raf=requestAnimationFrame(tick)},true);
+  document.addEventListener('pointermove',e=>{
+    if(act===e.pointerId){pen(e);tgt=clamp(tgt+(e.clientX-lx)*.9-Math.abs(e.clientY-ly)*.12,bs-24,bs+24);lx=e.clientX;ly=e.clientY;lastMv=performance.now();put(e);return}
+    /* تحويم: نقطة ملوّنة بدل القلم لما القلم فوق الصفحة بدون لمس */
+    if(act===null&&cfg.hv&&on&&INK.includes(tool)&&e.buttons===0&&(e.pointerType==='pen'||e.pointerType==='mouse')
+      &&e.target&&e.target.closest&&e.target.closest('#pages .page')&&!e.target.closest('.ptcap,.ptl b')){
+      el.style.setProperty('--pc',(typeof inkOn==='function'?inkOn(color):color)||'#111');cx=px=e.clientX;cy=py=e.clientY;setPos();
+      el.classList.add('hv','on');clearTimeout(hvT);hvT=setTimeout(()=>{if(act===null)el.classList.remove('on','hv')},1500)}
+    else if(act===null&&el.classList.contains('hv')){el.classList.remove('on','hv')}},true);
   document.addEventListener('pointerup',e=>{if(act===e.pointerId)off()},true);
   document.addEventListener('pointercancel',e=>{if(act===e.pointerId)off()},true);
   addEventListener('blur',off);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)off()});
-  window.__pcur={get on(){return on},toggle(){on=!on;try{localStorage.setItem(KEY,on?'1':'0')}catch(e){}
-    if(!on)off();gs(on?'القلم المرئي: شغّال ✒️':'القلم المرئي: مطفي')}};
+  /* زر ✒️ بالشريط العلوي: نقرة وحدة تشغّل/تطفّي */
+  const tg=document.createElement('button');tg.id='pcTg';tg.type='button';tg.textContent='✒️';tg.title='القلم المرئي (تشغيل/إطفاء)';
+  const sync=()=>{tg.classList.toggle('on',on);tg.setAttribute('aria-pressed',on?'true':'false')};
+  const mb=document.getElementById('moreB');if(mb&&mb.parentNode)mb.parentNode.insertBefore(tg,mb);
+  const api=window.__pcur={get on(){return on},get cfg(){return Object.assign({},cfg)},
+    toggle(){on=!on;try{localStorage.setItem(KEY,on?'1':'0')}catch(e){}
+      if(!on)off();sync();gs(on?'القلم المرئي: شغّال ✒️':'القلم المرئي: مطفي')},
+    /* حوار المظهر: كل خيار بيتبدّل بالكبسة وبيرجع الحوار مفتوح */
+    look(){const OO=k=>cfg[k]?'شغّال':'مطفي',tg2=k=>()=>{cfg[k]=cfg[k]?0:1;saveCfg();if(k==='tr'&&!cfg.tr)clearTr();api.look()};const cyc=(k,arr)=>{cfg[k]=(cfg[k]+1)%arr.length;saveCfg();look();api.look()};
+      pick('✒️ مظهر القلم المرئي',[
+        ['الحجم: '+SZ[cfg.sz][0]+' (اضغط للتبديل)',()=>cyc('sz',SZ)],
+        ['الشفافية: '+OP[cfg.op][0]+' (اضغط للتبديل)',()=>cyc('op',OP)],
+        ['لون الجسم: '+BD[cfg.bd][0]+' (اضغط للتبديل)',()=>cyc('bd',BD)],
+        'للتسجيل والدروس:',
+        ['💥 نبضة عند اللمس: '+OO('pl'),tg2('pl')],
+        ['✨ أثر خلف القلم: '+OO('tr'),tg2('tr')],
+        ['〰 تنعيم الحركة: '+OO('sm'),tg2('sm')],
+        ['⏱ إخفاء تلقائي بعد ثانيتين توقف: '+OO('ah'),tg2('ah')],
+        ['🔴 نقطة تحويم بقلم الآيباد: '+OO('hv'),tg2('hv')],
+        ['↺ رجّع الافتراضي',()=>{cfg=Object.assign({},DEF);saveCfg();look();api.look()}]])}};
+  tg.onclick=api.toggle;sync();
 })();
 /* ---------- pinch / wheel zoom ---------- */
 let pz=null;const tdist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
