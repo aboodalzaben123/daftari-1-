@@ -4457,7 +4457,124 @@ addEventListener('message',e=>{const m=e.data;if(m&&m.nbLog&&book&&Array.isArray
   if(m&&m.nbReady){for(const d of DOM.values()){if(d.fr&&d.fr.contentWindow===e.source){d.rdy=1;if(d.rdyCb){const f=d.rdyCb;d.rdyCb=null;f()}break}}return}
   if(!m||!m.nbLive||!book||(INKD&&Date.now()-LKT<2500))return;for(const d of DOM.values()){if(d.fr&&d.fr.contentWindow===e.source){const ar=Math.min(8,Math.max(1.414,m.h/900));if(ar>d.pg.ar*1.04&&(d.arN=(d.arN||0)+1)<=3){d.pg.ar=ar;fit(d);save()}break}}});
 
-/* ===== ZIP بدون ضغط (لتنزيل عدة صور بملف واحد) ===== */function zipStore(fs){const enc=new TextEncoder(),tb=zipStore.T||(zipStore.T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})());
+/* ===== ZIP بدون ضغط (لتنزيل عدة صور بملف واحد) ===== *//* ===== صندوق HTML (v13.17): الـHTML جوّا صفحة عادية بحجم بتتحكم فيه، مش صفحة كاملة =====
+   العنصر: {k:'i', src:لقطة طويلة للمستند كله بعرض hw, hb:مفتاح الـHTML بالـIndexedDB, hw:عرض التصميم px (900),
+            hh:طول المستند px, hy:مكان التمرير px, hl:سجل التفاعلات, x,y,w,h}
+   - بالكتابة: بيترسم من اللقطة (hbDraw): الصندوق نافذة حجمها (hw × hw·h/w) على المستند بدءاً من hy، فتكبيره/تصغيره بيغيّر النافذة بدون ما يشوّه.
+   - بأداة 👆 تفاعل: iframe حي فوق الصندوق (hbLive، بيتنادى من gLive)، بتمرّر جواه وبتكبس أزراره. تفاعلاتك بتنحفظ بـhl وبتنعاد لما يفتح.
+   - لما ترجع للكتابة: بتتاخد لقطة جديدة للحالة الحالية ومكان التمرير (hbApply) عشان اللي بتشوفه هو آخر حالة.
+   - الاستيراد/السجل/اللقطة بيستخدموا نفس liveInner/liveDoc/htSlice تبع الصفحة الحيّة (جزء 23).
+   - (v13.19) importHtmlBox(f,tg,opt) بياخد opt={width,height,at:[x,y],quiet} وبيرجّع العنصر (أو null)، وبيناديه جسر NB.page.insertLive({box:true}) من جزء 24.
+   - (v13.19) بأداة 👆 بيطلع فوق كل صندوق زرّين: ↺ رجّع الصندوق لحالته الأصلية (hbReset)، و⧉ كرّر الصندوق (hbDup). */
+function hbBlank(W,H){const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,H);g.fillStyle='#9aa4b2';g.font='bold '+Math.round(W/9)+'px sans-serif';g.textAlign='center';g.fillText('HTML',W/2,H/2);const u=c.toDataURL('image/png');relCv(c);return u}
+function hbDraw(g,it,m,cw){
+  const hw=it.hw||900,k=m.naturalWidth/hw,vh=hw*it.h/it.w,sy=Math.max(0,it.hy||0)*k,sh=vh*k,av=m.naturalHeight-sy,X=it.x*cw,Y=it.y*cw,Wd=it.w*cw,Hd=it.h*cw;
+  g.save();if(it.rot){g.translate(X+Wd/2,Y+Hd/2);g.rotate(it.rot);g.translate(-Wd/2,-Hd/2)}else g.translate(X,Y);
+  g.fillStyle='#fff';g.fillRect(0,0,Wd,Hd);
+  if(av>0){const h2=Math.min(sh,av);g.drawImage(m,0,sy,m.naturalWidth,h2,0,0,Wd,Hd*h2/sh)}
+  g.strokeStyle='rgba(0,0,0,.2)';g.lineWidth=Math.max(1,cw/700);g.strokeRect(0,0,Wd,Hd);g.restore();return true}
+function hbY(pg,h){try{const d=DOM.get(pg.id),r=d.el.getBoundingClientRect(),vr=view.getBoundingClientRect(),y=(vr.top-r.top)/r.width+.04;return Math.max(.04,Math.min(y,pg.ar-h-.02))}catch(e){return .06}}
+/* لقطة طويلة للمستند كله بعرض W (بيستخدمها الاستيراد وزر الرجوع للأصل) */
+/* V: ارتفاع نافذة القياس. لازم يساوي ارتفاع نافذة الإطار الحي (وإلا مستند بـ min-height:100vh أو بتوسيط عامودي بيطلع بالصورة بمكان غير مكانه بأداة 👆). عند الاستيراد 800 (بينتج نافذة الصندوق ~800)، وعند الرجوع للأصل ارتفاع نافذة الصندوق الحالي */
+async function hbRender(txt,W,V){const fr=document.createElement('iframe');
+  try{fr.setAttribute('sandbox','allow-same-origin');fr.style.cssText='position:fixed;left:-12000px;top:0;width:'+W+'px;height:'+Math.max(200,Math.round(V||800))+'px;border:0;background:#fff';document.body.append(fr);
+    await new Promise(r=>{fr.onload=r;fr.srcdoc=txt});await new Promise(r=>setTimeout(r,400));
+    const dd=fr.contentDocument,total=Math.min(16000,Math.max(dd.documentElement.scrollHeight,dd.body?dd.body.scrollHeight:0,200));
+    let u;try{u=(await htSlice(htXml(txt,W,total),W,total,0,total,Math.min(1.6,Math.sqrt(8e6/(W*total))))).u}catch(er){u=hbBlank(W,Math.min(total,900))}
+    return{u,total}}
+  finally{fr.remove()}}
+async function importHtmlBox(f,tg,opt){
+  opt=opt||{};let res=null;
+  if(importHtml.busy){gs('في استيراد شغّال، استنى شوي');return null}
+  if(f.size>8e6){gs('الملف كبير كثير (أكثر من 8 ميغا)');return null}
+  importHtml.busy=1;
+  try{
+    gs('عم أجهّز الصندوق...');const txt=await f.text();if(!txt.trim())throw new Error('الملف فاضي');
+    const W=900,{u,total}=await hbRender(txt,W);
+    const key=uid()+uid();await dbq('put',key,txt);
+    const w=opt.width!=null?Math.max(.05,Math.min(1,+opt.width||.9)):.9,
+      h=opt.height!=null?Math.max(.05,Math.min(1.5,+opt.height||.3)):+(w*Math.min(1,Math.max(.3,total/W))).toFixed(4),
+      it={k:'i',src:u,x:+((1-w)/2).toFixed(4),y:.06,w,h,hb:key,hw:W,hh:total,hy:0},nm=f.name.replace(/\.html?$/i,'');
+    if(tg==='new'||!book){const pg=newPage({tpl:'blank'});pg.items.push(it);const b={id:uid(),title:nm,ts:Date.now(),folderId:cwd,pages:[pg]};S.books.push(b);save();open(b)}
+    else{let pg=book.pages[curPg];
+      if(!pg||pg.cvr||pg.idx||pg.live){pg=newPage({tpl:'blank'});const at=covClamp(curPg+1);book.pages.splice(at,0,pg);renderBook();curPg=at;upd()}
+      it.y=hbY(pg,it.h);{const vp=visPlace(pg,it.w,it.h);if(vp){it.x=vp[0];it.y=Math.max(.02,vp[1])}}
+      if(Array.isArray(opt.at)&&opt.at.length>=2){it.x=Math.max(0,Math.min(1-w,+opt.at[0]-w/2));it.y=Math.max(.02,Math.min(+opt.at[1]-h/2,Math.max(.02,pg.ar-h-.02)))}
+      pg.items.push(it);undo.push({pg,add:it});redo=[];rd(pg);
+      if(!opt.quiet){document.querySelector('[data-t=lasso]').click();setLs({pg,items:[it]})}save()}
+    res=it;gs('تم ✓ صندوق HTML: حرّكه وكبّره بأداة التحديد، واختر 👆 تفاعل لتشغيله والتمرير جواه')}
+  catch(er){gs('تعذّر إنشاء الصندوق: '+(er&&er.message||er))}
+  finally{importHtml.busy=0}
+  return res}
+/* إطار حي فوق كل صندوق بالصفحة (أداة 👆 بس). بيتنادى من بداية gLive */
+function hbLive(d,ask){
+  if(!d.hbm)d.hbm=new Map();
+  const want=tool==='tap'&&d.vis&&d.g?d.pg.items.filter(i=>i.k==='i'&&i.hb):[];
+  hbInk(d,want);
+  d.hbm.forEach((o,it)=>{if(want.includes(it)){o.closing=0;o.fr.style.pointerEvents='auto'}else hbClose(d,it,o)});
+  const B=d.el.clientWidth||baseW();
+  want.forEach(it=>{let o=d.hbm.get(it);
+    if(!o){const fr=document.createElement('iframe');fr.setAttribute('sandbox','allow-scripts allow-forms allow-popups allow-modals allow-downloads');fr.title='hbox';
+      fr.style.cssText='position:absolute;border:0;background:#fff;z-index:6;max-width:none';
+      o={fr,it,rn:0,rdy:0,dirty:0,scr:0,t0:0};d.hbm.set(it,o);d.el.append(fr);o.bt=hbBtns(d,it,o);
+      dbq('get',it.hb).then(t=>{if(d.hbm.get(it)===o)fr.srcdoc=t?liveDoc(t,it.hl,o.rn):'<p style="font:16px sans-serif;padding:20px">⚠ ما لقيت محتوى الصندوق</p>'})}
+    const Wd=it.hw||900,Hd=Wd*it.h/it.w,f=it.w*B/Wd,cx=(it.x+it.w/2)*B,cy=(it.y+it.h/2)*B,st=o.fr.style;
+    st.width=Wd+'px';st.height=Hd+'px';st.left=(cx-Wd/2)+'px';st.top=(cy-Hd/2)+'px';st.transform=(it.rot?'rotate('+it.rot+'rad) ':'')+'scale('+f+')';
+    /* مكان الزرّين: الزاوية العليا اليمنى جوّا الصندوق (مع الدوران) */
+    if(o.bt){const dx=it.w*B/2-40,dy=-it.h*B/2+20,c=Math.cos(it.rot||0),s=Math.sin(it.rot||0);o.bt.style.left=(cx+dx*c-dy*s)+'px';o.bt.style.top=(cy+dx*s+dy*c)+'px';o.bt.style.display=o.closing?'none':'flex'}})}
+/* v13.23: الحبر والنصوص والصور اللي انرسمت فوق الصندوق (بعده بالترتيب) لازم تبين فوق الإطار الحي بأداة 👆 (الإطار بيغطي الصفحة)، متل الصفحة الحيّة. بنرسمها على طبقة شفافة فوق الإطار وبتنشال لما نطلع من أداة 👆 */
+function hbInk(d,want){const pg=d.pg;let lo=1e9;want.forEach(b=>{const i=pg.items.indexOf(b);if(i>=0&&i<lo)lo=i});
+  const above=want.length?pg.items.filter((it,i)=>i>lo&&!it.hb):[];
+  if(!above.length){if(d.hbk){d.hbk.remove();d.hbk=null}return}
+  let k=d.hbk;if(!k){k=d.hbk=document.createElement('canvas');k.className='hbk';k.style.cssText='position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:7';d.el.append(k)}
+  if(k.width!==d.cv.width||k.height!==d.cv.height){k.width=d.cv.width;k.height=d.cv.height}
+  drawPage.lv=1;try{drawPage(k.getContext('2d'),Object.assign({},pg,{live:true,bg:null,tpl:'blank',items:above}),k.width)}catch(e){}finally{drawPage.lv=0}}
+/* زرّين فوق الصندوق بأداة 👆: ↺ رجّع لحالته الأصلية، ⧉ كرّر */
+function hbBtns(d,it,o){const w=document.createElement('div');
+  w.style.cssText='position:absolute;z-index:8;display:flex;gap:6px;transform:translate(-50%,-50%);direction:ltr';
+  const mkb=(tx,ti,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=tx;b.title=ti;
+    b.style.cssText='width:34px;height:34px;border-radius:50%;border:1px solid rgba(0,0,0,.25);background:rgba(255,255,255,.92);font-size:18px;line-height:1;padding:0;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.25)';
+    ['pointerdown','pointerup','touchstart','mousedown'].forEach(ev=>b.addEventListener(ev,e=>e.stopPropagation()));
+    b.onclick=e=>{e.stopPropagation();e.preventDefault();fn()};return b};
+  w.append(mkb('↺','رجّع الصندوق لحالته الأصلية',()=>pick('رجّع الصندوق لأصله؟ (بيمسح تفاعلاتك ومكان التمرير جواه)',[['↺ أيوا، رجّعه',()=>hbReset(d,it,o)]])),
+    mkb('⧉','كرّر الصندوق',()=>hbDup(d,it,o)));
+  d.el.append(w);return w}
+/* رجّع الصندوق للحالة الأصلية: لقطة جديدة من الـHTML المحفوظ، وبيمسح سجل التفاعلات ومكان التمرير */
+async function hbReset(d,it,o){
+  try{const txt=await dbq('get',it.hb);if(!txt){gs('ما لقيت الـHTML الأصلي للصندوق');return}
+    gs('عم برجّع الصندوق...');const r=await hbRender(txt,it.hw||900,(it.hw||900)*it.h/it.w);
+    it.src=r.u;it.hh=r.total;it.hy=0;delete it.hl;IT.delete(it);
+    if(o&&d.hbm&&d.hbm.get(it)===o){o.dirty=0;o.scr=0;o.rdy=0;o.rn=(o.rn||0)+1;o.fr.srcdoc=liveDoc(txt,[],o.rn)}
+    save();rd(d.pg);gs('رجع الصندوق لحالته الأصلية ✓')}
+  catch(e){gs('تعذّر الرجوع للأصل: '+(e&&e.message||e))}}
+/* كرّر الصندوق: نسخة بنفس الـHTML وبالحالة الحالية (مكان التمرير والتفاعلات). بتتحدد النسخة وبتتحوّل لأداة التحديد عشان تحرّكها فوراً */
+async function hbDup(d,it,o){const pg=d.pg;
+  if(o&&o.rdy&&(o.dirty||o.scr)){try{await hbApply(d,o)}catch(e){}}
+  const c=JSON.parse(JSON.stringify(it));
+  c.x=Math.max(0,Math.min(1-c.w,it.x+.04));c.y=Math.max(.02,Math.min(it.y+.04,Math.max(.02,pg.ar-c.h-.02)));
+  pg.items.push(c);undo.push({pg,add:c});redo=[];rd(pg);document.querySelector('[data-t=lasso]').click();setLs({pg,items:[c]});save();gs('تكرّر الصندوق ✓ حرّكه للمكان اللي بدك ياه')}
+/* لقطة من الإطار الحي (HTML بحالته الحالية + مكان التمرير + طول المستند) */
+function hbSnap(o){return new Promise(res=>{const id=uid();let done=0,tm=0;const fin=v=>{if(done)return;done=1;removeEventListener('message',h);clearTimeout(tm);res(v)};
+  const h=ev=>{const m=ev.data;if(m&&m.nbSnapRes===id&&ev.source===o.fr.contentWindow)fin(m)};
+  tm=setTimeout(()=>fin(null),2500);addEventListener('message',h);try{o.fr.contentWindow.postMessage({nbSnap:id},'*')}catch(e){fin(null)}})}
+async function hbApply(d,o){const it=o.it,m=await hbSnap(o);if(!m||!m.html)return false;
+  const W=it.hw||900,th=Math.min(16000,Math.max(200,m.th||it.hh||1200));
+  try{const r=await htSlice(htXml(m.html,W,th),W,th,0,th,Math.min(1.6,Math.sqrt(8e6/(W*th))));
+    it.src=r.u;it.hh=th;it.hy=Math.max(0,Math.min(m.sy||0,th-W*it.h/it.w));IT.delete(it);o.dirty=0;o.scr=0;save();rd(d.pg);return true}catch(e){return false}}
+function hbGone(d,it,o){o.fr.remove();if(o.bt)o.bt.remove();d.hbm.delete(it)}
+function hbGone(d,it,o){o.fr.remove();if(o.bt)o.bt.remove();d.hbm.delete(it)}
+function hbClose(d,it,o){if(o.closing)return;
+  if(!o.rdy||!(o.dirty||o.scr)){hbGone(d,it,o);return}
+  o.closing=1;o.fr.style.pointerEvents='none';if(o.bt)o.bt.style.display='none';
+  hbApply(d,o).then(()=>{},()=>{}).then(()=>{if(o.closing&&d.hbm.get(it)===o)hbGone(d,it,o)})}
+/* رسائل الإطار: سجل التفاعلات (nbLog)، الجاهزية (nbReady)، التمرير (nbScr) */
+addEventListener('message',e=>{const m=e.data;if(!m||typeof m!=='object'||!(m.nbLog||m.nbReady||m.nbScr))return;
+  for(const d of DOM.values()){if(!d.hbm)continue;for(const o of d.hbm.values()){if(o.fr.contentWindow!==e.source)continue;
+    if(m.nbLog&&Array.isArray(m.ev)){const lg=o.it.hl||(o.it.hl=[]);for(const ev of m.ev){if(!Array.isArray(ev))continue;const l=lg[lg.length-1];if(ev[0]==='v'&&l&&l[0]==='v'&&l[1]===ev[1])lg[lg.length-1]=ev;else if(lg.length<3000)lg.push(ev)}o.dirty=1;save()}
+    else if(m.nbReady){o.rdy=1;o.t0=Date.now();if(o.it.hy)try{o.fr.contentWindow.postMessage({nbScroll:o.it.hy},'*')}catch(_){}}
+    else if(m.nbScr){if(Date.now()-o.t0>900)o.scr=1}
+    return}}});
+function zipStore(fs){const enc=new TextEncoder(),tb=zipStore.T||(zipStore.T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})());
   const crc=u=>{let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=tb[(c^u[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
   const parts=[],cen=[];let off=0;const d=new Date(),dt=((d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1))&0xFFFF,dd=(((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate())&0xFFFF;
   fs.forEach(f=>{const nm=enc.encode(f.name),c=crc(f.data),sz=f.data.length;
