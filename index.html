@@ -6300,10 +6300,12 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
       ['👁 كشف بالنقر'+gl,()=>startReveal('v')],
       ['🔦 تركيز: الصفحة ظاهرة والباقي معتّم'+gl,()=>startReveal('f')],
       ...(nm?[['🗑 مسح الفواصل ✂ من الصفحة ('+nm+')',()=>clearMarks(pg)]]:[]),
+      ['📄 نص ← مشاهد (الصقي نص وبينبني بالصفحة)',()=>{if(window.__tv)window.__tv.open(pg)}],
       ...(ns?[['🎬 عرض المشاهد ('+ns+') — ضغطة لكل مشهد',()=>startScenes()],['👁 حدود المشاهد',()=>showMarks(pg,7000)],['📝 سكربت المشاهد ('+Object.keys(pg.scr||{}).length+'/'+ns+')',()=>{if(window.__scr)window.__scr.open(pg)}],['🎙 شرح بالصوت ('+Object.keys(pg.nar||{}).length+'/'+ns+')',()=>{if(window.__nar)window.__nar.open(pg)}],['🗑 مسح المشاهد ('+ns+')',()=>clearScenes(pg)]]:[['🎬 مشاهد: حدّد باللاسو واضغط «🎬 مشهد» من شريط التحديد',()=>gs('حدّد باللاسو الجزء اللي بدك إياه مشهد، واضغط «🎬 مشهد»')]]),
       ['⏱ التوقيت: '+(rt?'حقيقي (سرعة كتابتك)':'محسوب (من طول الخط)')+' ← اضغط للتبديل',()=>{rt=rt?0:1;keep();gs(rt?'⏱ التوقيت الحقيقي':'⏱ التوقيت المحسوب')}],
       ['⏳ الوقفات بين الخطوط: '+GAPS[gm][0]+' ← اضغط للتبديل',()=>{gm=(gm+1)%3;keep();gs('⏳ الوقفات: '+GAPS[gm][0])}],
       ['🎥 صدّر فيديو ريلز 9:16 (قص على '+(ns?'المشهد':'الكتابة')+')',()=>{if(window.__vexp)window.__vexp.export('A')}],
+      ['🎥 صدّر فيديو بكاميرا ثابتة على كل المحتوى 9:16',()=>{if(window.__vexp)window.__vexp.export('C')}],
       ['🎥 صدّر فيديو الصفحة كاملة 9:16',()=>{if(window.__vexp)window.__vexp.export('B')}],
       ['🎥 خيارات التصدير: 16:9 عادي / 9:16، مع صوت الشرح…',()=>{if(window.__vexp)window.__vexp.options()}],
       ['🧪 فحص تسجيل الفيديو (للآيباد)',()=>{if(window.__vprobe)window.__vprobe.run()}],
@@ -6426,7 +6428,7 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
       tl.T.forEach(e=>T.push({it:e.it,s:e.s*f+off,e:e.e*f+off,a:e.a}));C.push(off+fs*f);
       if(ab)audio.push({start:off+fs*f,buf:ab,dur:D});
       off+=Math.max(tl.total*f,D?fs*f+D+300:0)+TRANS});
-    const total=off-TRANS+HOLD,R=mode==='B'?[region(pg,[],true)]:groups.map(g=>region(pg,g,false)),ph=pg.ar||1.414;
+    const total=off-TRANS+HOLD,R=mode==='B'?[region(pg,[],true)]:mode==='C'?[region(pg,pg.items,false)]:groups.map(g=>region(pg,g,false)),ph=pg.ar||1.414;
     const CWb=clamp(Math.ceil(VW/Math.min(...R.map(r=>r.w))),VW,2200);
     const vc=document.createElement('canvas');vc.width=VW;vc.height=VH;const vg=vc.getContext('2d');
     const base=document.createElement('canvas');base.width=CWb;base.height=Math.round(CWb*ph);const bx=base.getContext('2d');
@@ -6509,7 +6511,7 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
   const options=()=>{const x=X();if(!x)return;const pg=x.vis(),ns=pg?x.scenesOf(pg).length:0,nn=pg&&pg.nar?Object.keys(pg.nar).length:0;
     pick('🎥 تصدير فيديو',[
       ['الإطار: '+(o.f==='v'?'ريلز 9:16 (عمودي)':'عادي 16:9 (أفقي)')+' ← اضغط للتبديل',()=>{o.f=o.f==='v'?'h':'v';keepO();options()}],
-      ['القص: '+(o.m==='A'?'على '+(ns?'المشهد':'الكتابة'):'الصفحة كاملة')+' ← اضغط للتبديل',()=>{o.m=o.m==='A'?'B':'A';keepO();options()}],
+      ['القص: '+(o.m==='A'?'على '+(ns?'المشهد':'الكتابة'):o.m==='C'?'ثابت على كل المحتوى (بدون حركة كاميرا)':'الصفحة كاملة')+' ← اضغط للتبديل',()=>{o.m=o.m==='A'?'C':o.m==='C'?'B':'A';keepO();options()}],
       ['الصوت: '+(nn?(o.a?'مع شرحك 🔊 ('+nn+' من '+ns+' مقطع)':'بدون صوت'):'ما في تسجيل صوت (سجّلي من 🎬 ← 🎙)')+(nn?' ← اضغط للتبديل':''),()=>{if(nn){o.a=o.a?0:1;keepO();options()}else gs('سجّلي الشرح من 🎬 ← 🎙 شرح بالصوت أول')}],
       ['🎥 ابدأ التصدير ('+(o.f==='v'?'1080×1920':'1920×1080')+')',()=>exportVideo(o.m,o.f,!!o.a)],
       'التسجيل بالوقت الحقيقي: مدة الانتظار = مدة الفيديو، وخلّي الشاشة مفتوحة. مدة كل مشهد = مدة مقطعه الصوتي.'])};
@@ -6709,6 +6711,79 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
     c.iv=setInterval(()=>{if(!cur||cur!==c)return;if(!X()||!X().state()){clearTimeout(tm);endCur()}},300);go(0);
   }
   window.__nar={open,record,play,get,put,del,purge,has:(pg,n)=>!!(pg.nar&&pg.nar[n]),mimeOK,get active(){return !!cur}};
+})();
+/* ===== 📄 نص ← مشاهد (28i) =====
+   بتلصقي نص (برهان، شرح…) والتطبيق بيبنيه على الصفحة: كل فقرة (يفصلها سطر فاضي) = مشهد 🎬، والسطور مرتّبة تحت بعض بألوان الأقسام، فبتجهز للتصدير 🎥 أو للشرح بالصوت 🎙 بدون ما ترسمي/تحطي كل سطر بإيدك.
+   قواعد النص (بتظهر بالحوار): سطر بينتهي بـ ':' = عنوان قسم (كبير، ولون جديد لكل قسم) · سطر فاضي = مشهد جديد · '=' بأول السطر = منزاح · '∵' = ملاحظة صغيرة · '∴' أو '⟹' = نتيجة (بلون أول قسم).
+   تحويل تلقائي: \cap ∩ · \cup ∪ · \subseteq ⊆ · \emptyset ∅ … و A^c ← Aᶜ و x_1 ← x₁ (لوحة الآيباد ما فيها هالرموز).
+   بيضيف عناصر k:'t' عادية (بدون تغيير على بنية الصفحة) بحقل it.sc للمشهد، وبيتذكّر آخر دفعة عشان زر «احذف آخر دفعة».
+   يتبع: window.__tv={open,build,conv,undoLast}. ملاحظة تسمية: صف الأزرار كلاسه tvb مش tl (tl معرَّف عامّاً بجزء 19 لطبقة نص PDF). */
+(function(){
+  const PAL=['#c4b5fd','#fb923c','#4ade80','#38bdf8','#f472b6'],DARK='#24201a';
+  const SYM={cap:'∩',cup:'∪',subseteq:'⊆',subset:'⊂',supseteq:'⊇',supset:'⊃',emptyset:'∅',in:'∈',notin:'∉',therefore:'∴',because:'∵',Rightarrow:'⟹',implies:'⟹',Leftrightarrow:'⟺',iff:'⟺',forall:'∀',exists:'∃',le:'≤',leq:'≤',ge:'≥',geq:'≥',ne:'≠',neq:'≠',to:'→',times:'×',cdot:'·',infty:'∞',pm:'±',approx:'≈',sum:'∑',sqrt:'√',alpha:'α',beta:'β',gamma:'γ',delta:'δ',theta:'θ',lambda:'λ',pi:'π',mu:'μ',sigma:'σ',omega:'ω'};
+  const SUP={'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','n':'ⁿ','i':'ⁱ','c':'ᶜ','x':'ˣ','T':'ᵀ','+':'⁺','-':'⁻'};
+  const SUB={'0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉','n':'ₙ','i':'ᵢ'};
+  const conv=t=>String(t||'').replace(/\\([A-Za-z]+)/g,(m,k)=>SYM[k]||m).replace(/\^\{?([0-9nicxT+\-])\}?/g,(m,k)=>SUP[k]||m).replace(/\b([A-Za-z])_\{?([0-9ni])\}?(?![A-Za-z0-9])/g,(m,a,k)=>a+(SUB[k]||('_'+k)));
+  const isHead=l=>/:\s*$/.test(l)&&l.length<=40,isNote=l=>/^∵/.test(l),isRes=l=>/^(∴|⟹)/.test(l),isEq=l=>/^=/.test(l);
+  const sizeOf=l=>isHead(l)?44:isNote(l)?22:isRes(l)?38:isEq(l)?36:34;
+  const LH=(s,ar)=>s*1.5/(900*ar);
+  let last=null,mem='';try{mem=localStorage.getItem('nbtv')||''}catch(e){}
+  const SAMPLE='Show that:\nif A \\cap B = \\emptyset ,  then A \\subseteq B^c .\n\nProof:\nif we can write B^c = A \\cup C\nthen we are done.\n\nB^c = B^c \\cup \\emptyset\n= B^c \\cup (A \\cap B)\n= (B^c \\cup A) \\cap (B^c \\cup B)\n= (B^c \\cup A) \\cap U\n\\because U is the universal set .\n\n= A \\cup B^c\n\\therefore A \\subseteq A \\cup B^c';
+  const st=document.createElement('style');
+  st.textContent='.tvD textarea{width:100%;box-sizing:border-box;font:15px/1.55 system-ui,sans-serif;padding:8px;border:1.5px solid var(--line,#ccc);border-radius:10px;min-height:190px;resize:vertical}.tvD .tvb{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.tvD .tvb button{flex:1;min-width:130px}.tvD .tvr{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 0;text-align:right;font-size:14px}.tvD .tvr input[type=text]{flex:1;min-width:160px;padding:6px 8px;border:1.5px solid var(--line,#ccc);border-radius:8px;font-size:15px}.tvD .tvh{font-size:12.5px;opacity:.75;margin:4px 0;text-align:right;line-height:1.6}';
+  document.head.append(st);
+  /* يبني العناصر (بدون ما يلمس الصفحة) — بيرجّع {out,scenes,lines,skipped} */
+  function plan(pg,text,opt){
+    opt=opt||{};const ar=pg.ar||1.414,tx=conv(text).replace(/\r/g,'');
+    const blocks=tx.split(/\n\s*\n/).map(b=>b.split('\n').map(l=>l.trim()).filter(Boolean)).filter(b=>b.length);
+    if(!blocks.length)return null;
+    let ymax=0;pg.items.forEach(it=>{if(it.p&&it.p.length){it.p.forEach(q=>{if(q&&q[1]>ymax)ymax=q[1]})}else if(typeof it.y==='number'){ymax=Math.max(ymax,it.y+.03)}});
+    let y=ymax?Math.min(.9,ymax+.03):.04,scn=pg.items.reduce((m,i)=>Math.max(m,i.sc||0),0),sec=-1,col=PAL[0],skipped=0,lines=0;const out=[];
+    const t=conv(opt.title||'').trim();if(t){out.push({k:'t',c:'#ffffff',s:30,x:.06,y,v:t});y+=LH(30,ar)+.012}
+    for(let bi=0;bi<blocks.length;bi++){const b=blocks[bi];
+      const est=b.reduce((a,l)=>a+LH(sizeOf(l),ar),0);
+      if(bi>0&&y+est>.95){skipped=blocks.length-bi;break}
+      scn++;let first=true;
+      b.forEach(l=>{const s=sizeOf(l);let x=.08,c=col;
+        if(isHead(l)){sec++;col=PAL[sec%PAL.length];c=col;x=.06;if(out.length&&!first)y+=.008}
+        else if(isNote(l)){x=.14}
+        else if(isRes(l)){c=PAL[0]}
+        else if(isEq(l)){x=.12}
+        else if(sec>=0){x=.10}
+        out.push({k:'t',c,s,x,y,v:l,sc:scn});y+=LH(s,ar);lines++;first=false});
+      y+=.012}
+    return{out,scenes:blocks.length-skipped,lines,skipped}}
+  function build(pg,text,opt){
+    opt=opt||{};const p=plan(pg,text,opt);if(!p)return null;
+    const pc0=pg.pc;if(opt.dark)pg.pc=DARK;
+    p.out.forEach(it=>pg.items.push(it));
+    last={pg,items:p.out,pc:pc0,darkSet:!!opt.dark};
+    try{rd(pg)}catch(e){}try{save()}catch(e){}return p}
+  function undoLast(){if(!last)return false;const l=last;last=null;l.items.forEach(it=>{const k=l.pg.items.indexOf(it);if(k>=0)l.pg.items.splice(k,1)});
+    if(l.pg.scr){const have=new Set(l.pg.items.map(i=>String(i.sc)));Object.keys(l.pg.scr).forEach(n=>{if(!have.has(n))delete l.pg.scr[n]})}
+    if(l.darkSet){if(l.pc===undefined)delete l.pg.pc;else l.pg.pc=l.pc}
+    try{rd(l.pg)}catch(e){}try{save()}catch(e){}return true}
+  function open(pg){
+    pg=pg||(window.__replay&&window.__replay.x&&window.__replay.x.vis&&window.__replay.x.vis());if(!pg){gs('ما في صفحة ظاهرة');return}
+    const w0=dlg.style.width,mh0=dlg.style.maxHeight;dlg.textContent='';dlg.hidden=false;dlg.classList.add('tvD');dlg.style.width='min(560px,94vw)';dlg.style.maxHeight='calc(100% - 60px)';
+    const mo=new MutationObserver(()=>{if(dlg.hidden){dlg.style.width=w0;dlg.style.maxHeight=mh0;dlg.classList.remove('tvD');mo.disconnect()}});mo.observe(dlg,{attributes:true,attributeFilter:['hidden']});
+    const ta=document.createElement('textarea');ta.value=mem;ta.dir='auto';ta.placeholder='الصقي النص هون… سطر فاضي = مشهد جديد';
+    const cnt=document.createElement('div');cnt.className='tvh';
+    const upd=()=>{mem=ta.value;try{localStorage.setItem('nbtv',mem)}catch(e){}const tx=ta.value.replace(/\r/g,''),bl=tx.split(/\n\s*\n/).filter(b=>b.trim()),ln=tx.split('\n').filter(l=>l.trim()).length;cnt.textContent=bl.length?('رح يطلع '+bl.length+' مشهد و'+ln+' سطر'):'ما في نص لسا'};
+    ta.oninput=upd;
+    const r1=document.createElement('div');r1.className='tvr';const ti=document.createElement('input');ti.type='text';ti.placeholder='عنوان فوق (اسمك مثلاً) — اختياري';ti.dir='auto';try{ti.value=localStorage.getItem('nbtvt')||''}catch(e){}
+    ti.oninput=()=>{try{localStorage.setItem('nbtvt',ti.value)}catch(e){}};
+    const lb=document.createElement('label');const ck=document.createElement('input');ck.type='checkbox';ck.checked=true;lb.append(ck,' 🌙 خلفية غامقة للصفحة');r1.append(ti,lb);
+    const tl=document.createElement('div');tl.className='tvb';
+    const bB=mk('button','primary','✔ ابنِ بالصفحة'),bS=mk('button','','مثال'),bU=mk('button','','↩ احذف آخر دفعة'),bX=mk('button','','إغلاق');
+    bB.onclick=()=>{if(!ta.value.trim()){gs('الصقي نص أول');return}const p=build(pg,ta.value,{title:ti.value,dark:ck.checked});if(!p){gs('ما في نص');return}dlg.hidden=true;
+      gs('✓ انبنى '+p.scenes+' مشهد ('+p.lines+' سطر)'+(p.skipped?' — الصفحة ما كفت، بقي '+p.skipped+' مشهد: ضيفيهم بصفحة جديدة':'')+'. هلأ 🎬 ← 🎙 للشرح أو 🎥 للتصدير')};
+    bS.onclick=()=>{ta.value=SAMPLE;upd()};bU.onclick=()=>{gs(undoLast()?'↩ انحذفت آخر دفعة':'ما في دفعة أحذفها')};bX.onclick=()=>{dlg.hidden=true};
+    tl.append(bB,bS,bU);
+    const hint=document.createElement('div');hint.className='tvh';hint.textContent='سطر بينتهي بـ : = عنوان قسم (لون جديد) · = بأول السطر = منزاح · ∵ ملاحظة صغيرة · ∴ أو ⟹ نتيجة. تحويل تلقائي: \\cap \\cup \\subseteq \\emptyset … و A^c ← Aᶜ. الإضافة بتنزل تحت المحتوى الموجود بالصفحة.';
+    dlg.append(mk('b','','📄 نص ← مشاهد'),ta,cnt,r1,tl,hint,bX);upd();
+  }
+  window.__tv={open,build,conv,undoLast,plan};
 })();
 /* ---------- pinch / wheel zoom ---------- */
 let pz=null;const tdist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
