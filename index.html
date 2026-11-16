@@ -6263,7 +6263,7 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
       r.style.cssText+=';left:'+(x0-pad)*100+'%;top:'+(y0-pad)/ar*100+'%;width:'+(x1-x0+2*pad)*100+'%;height:'+(y1-y0+2*pad)/ar*100+'%';
       const b=document.createElement('b');b.textContent=i+1;r.append(b);lay.append(r)});
     d.el.append(lay);mkT=setTimeout(hideMarks,ms||5000)};
-  const clearScenes=pg=>{pg.items.forEach(i=>{if(i.sc)delete i.sc});try{save()}catch(e){}hideMarks();gs('اتمسحت المشاهد 🎬 من الصفحة')};
+  const clearScenes=pg=>{pg.items.forEach(i=>{if(i.sc)delete i.sc});delete pg.scr;try{window.__nar&&window.__nar.purge(pg)}catch(e){}try{save()}catch(e){}hideMarks();gs('اتمسحت المشاهد 🎬 من الصفحة')};
   const startScenes=()=>{
     const pg0=vis();if(!pg0){gs('ما في صفحة ظاهرة');return}
     const sc=scenesOf(pg0);if(!sc.length){gs('ما في مشاهد بالصفحة. حدّد باللاسو واضغط «🎬 مشهد»');return}
@@ -6300,14 +6300,15 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
       ['👁 كشف بالنقر'+gl,()=>startReveal('v')],
       ['🔦 تركيز: الصفحة ظاهرة والباقي معتّم'+gl,()=>startReveal('f')],
       ...(nm?[['🗑 مسح الفواصل ✂ من الصفحة ('+nm+')',()=>clearMarks(pg)]]:[]),
-      ...(ns?[['🎬 عرض المشاهد ('+ns+') — ضغطة لكل مشهد',()=>startScenes()],['👁 حدود المشاهد',()=>showMarks(pg,7000)],['🗑 مسح المشاهد ('+ns+')',()=>clearScenes(pg)]]:[['🎬 مشاهد: حدّد باللاسو واضغط «🎬 مشهد» من شريط التحديد',()=>gs('حدّد باللاسو الجزء اللي بدك إياه مشهد، واضغط «🎬 مشهد»')]]),
+      ...(ns?[['🎬 عرض المشاهد ('+ns+') — ضغطة لكل مشهد',()=>startScenes()],['👁 حدود المشاهد',()=>showMarks(pg,7000)],['📝 سكربت المشاهد ('+Object.keys(pg.scr||{}).length+'/'+ns+')',()=>{if(window.__scr)window.__scr.open(pg)}],['🎙 شرح بالصوت ('+Object.keys(pg.nar||{}).length+'/'+ns+')',()=>{if(window.__nar)window.__nar.open(pg)}],['🗑 مسح المشاهد ('+ns+')',()=>clearScenes(pg)]]:[['🎬 مشاهد: حدّد باللاسو واضغط «🎬 مشهد» من شريط التحديد',()=>gs('حدّد باللاسو الجزء اللي بدك إياه مشهد، واضغط «🎬 مشهد»')]]),
       ['⏱ التوقيت: '+(rt?'حقيقي (سرعة كتابتك)':'محسوب (من طول الخط)')+' ← اضغط للتبديل',()=>{rt=rt?0:1;keep();gs(rt?'⏱ التوقيت الحقيقي':'⏱ التوقيت المحسوب')}],
       ['⏳ الوقفات بين الخطوط: '+GAPS[gm][0]+' ← اضغط للتبديل',()=>{gm=(gm+1)%3;keep();gs('⏳ الوقفات: '+GAPS[gm][0])}],
       ['🎥 صدّر فيديو ريلز 9:16 (قص على '+(ns?'المشهد':'الكتابة')+')',()=>{if(window.__vexp)window.__vexp.export('A')}],
       ['🎥 صدّر فيديو الصفحة كاملة 9:16',()=>{if(window.__vexp)window.__vexp.export('B')}],
+      ['🎥 خيارات التصدير: 16:9 عادي / 9:16، مع صوت الشرح…',()=>{if(window.__vexp)window.__vexp.options()}],
       ['🧪 فحص تسجيل الفيديو (للآيباد)',()=>{if(window.__vprobe)window.__vprobe.run()}],
       'بيشتغل على الصفحة الظاهرة. التجميع والفواصل ✂ من ⚙ بوضع الكشف/التركيز. بتطلع بـ ✕ أو Esc.'])};
-  window.__replay={x:{vis,scenesOf,timeline,part,partT,textTip,isT,anim},scenes:startScenes,plan:(it,v)=>timeline(it,v||SPD[1][1]),opt:(a,b)=>{if(a!=null)rt=a;if(b!=null)gm=b},start:startReplay,reveal:g=>startReveal('v',g),focus:g=>startReveal('f',g),stop,get active(){return S?S.mode:''}};
+  window.__replay={x:{state:()=>S,toggle,paintBase,blit,redraw,marks:showMarks,vis,scenesOf,timeline,part,partT,textTip,isT,anim},scenes:startScenes,plan:(it,v)=>timeline(it,v||SPD[1][1]),opt:(a,b)=>{if(a!=null)rt=a;if(b!=null)gm=b},start:startReplay,reveal:g=>startReveal('v',g),focus:g=>startReveal('f',g),stop,get active(){return S?S.mode:''}};
 })();
 /* ===== 🧪 فحص تسجيل الفيديو (للآيباد) =====
    بيفحص جهازك قبل ما نبني تصدير الفيديو: MediaRecorder وcaptureStream، الصيغ المدعومة (mp4 أو webm)،
@@ -6389,21 +6390,24 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
    المدخل: قائمة 🎬 ← «🎥 صدّر فيديو...». جسر: window.__vexp.export(mode) / .prep(mode) (للاختبار) / .last
    بيستخدم من 28d عبر window.__replay.x، ومن الـIIFE: drawPage, drawItem, bbox, inkOn, itImg, loadBg, gs */
 (function(){
-  const VW=1080,VH=1920,TRANS=900,LEAD=600,HOLD=1300,Q=VH/VW;
+  /* v13.50: الأبعاد صارت متغيّرة: 'v' = 1080×1920 (ريلز 9:16، الافتراضي) و'h' = 1920×1080 (عادي 16:9) */
+  let VW=1080,VH=1920,Q=VH/VW;const TRANS=900,LEAD=600,HOLD=1300,LEADA=250;
+  const setFmt=f=>{VW=f==='h'?1920:1080;VH=f==='h'?1080:1920;Q=VH/VW};
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),ease=x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
   const MIMES=['video/mp4;codecs=avc1.42E01E','video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  const MIMES_A=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
   const X=()=>window.__replay&&window.__replay.x;
   let ov=null,cancel=null;
   const region=(pg,items,full)=>{
     const ph=pg.ar||1.414;let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
     if(!full)items.forEach(it=>{let b;try{b=bbox(it)}catch(e){return}if(!b||!isFinite(b[0])||!isFinite(b[1]))return;x0=Math.min(x0,b[0]);y0=Math.min(y0,b[1]);x1=Math.max(x1,b[0]+b[2]);y1=Math.max(y1,b[1]+b[3])});
-    if(full||x0>=1e9)return{x:0,y:(ph-Q)/2,w:1};
+    if(full||x0>=1e9){const w=Math.max(1,ph/Q);return{x:(1-w)/2,y:(ph-w*Q)/2,w}}   /* الصفحة كاملة: بالعرض لو أضيق من الإطار، وبالطول لو أطول (16:9) */
     const M=.06,bw=x1-x0,bh=y1-y0,w=Math.min(1,Math.max(bw*(1+2*M),bh*(1+2*M)/Q,.3)),rh=w*Q;
     let rx=clamp((x0+x1)/2-w/2,0,Math.max(0,1-w)),ry=(y0+y1)/2-rh/2;ry=rh<=ph?clamp(ry,0,ph-rh):(ph-rh)/2;
     return{x:rx,y:ry,w};
   };
   /* بيجهّز الخطة: جدول زمني (مل ث) + مناطق الكاميرا + كانفاسات الرسم. draw(t) بيرسم الإطار عند الزمن t (مل ث) على P.vc */
-  async function prep(mode){
+  async function prep(mode,actx){
     const x=X();if(!x)throw new Error('محرك العرض (28d) مش موجود');
     const pg=x.vis();if(!pg)throw new Error('ما في صفحة ظاهرة');
     if(pg.live)throw new Error('الصفحة الحيّة (HTML) مش مدعومة');
@@ -6412,19 +6416,27 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
     const jobs=[];if(pg.bg)jobs.push(loadBg(pg.bg));
     pg.items.filter(i=>i.k==='i').forEach(i=>{try{const m=itImg(i);if(m&&!m.complete)jobs.push(new Promise(r=>{m.addEventListener('load',r);m.addEventListener('error',r);setTimeout(r,2500)}))}catch(e){}});
     await Promise.all(jobs);
-    const T=[],C=[];let off=600;
-    groups.forEach(g=>{const tl=x.timeline(g,.7);tl.T.forEach(e=>T.push({it:e.it,s:e.s+off,e:e.e+off,a:e.a}));C.push(off+(tl.T.length?tl.T[0].s:0));off+=tl.total+TRANS});
+    /* صوت الشرح (28h): مقطع لكل مشهد. مدة المشهد = مدة مقطعه، والكتابة بتتسرّع (حتى ×3.3) لو أطول من الكلام */
+    const AU=[];
+    if(actx&&sc.length&&pg.nar&&window.__nar){for(let i=0;i<sc.length;i++){const n=sc[i].n;if(!pg.nar[n]){AU[i]=null;continue}
+      try{const c=await window.__nar.get(pg,n);AU[i]=c?await new Promise((res,rej)=>actx.decodeAudioData(c.buf.slice(0),res,rej)):null}catch(e){AU[i]=null}}}
+    const T=[],C=[],audio=[];let off=600;
+    groups.forEach((g,i)=>{const tl=x.timeline(g,.7),ab=AU[i],D=ab?ab.duration*1000:0,fs=tl.T.length?tl.T[0].s:0;let f=1;
+      if(D&&tl.total>D-LEADA)f=Math.max(.3,Math.max(600,D-LEADA)/tl.total);
+      tl.T.forEach(e=>T.push({it:e.it,s:e.s*f+off,e:e.e*f+off,a:e.a}));C.push(off+fs*f);
+      if(ab)audio.push({start:off+fs*f,buf:ab,dur:D});
+      off+=Math.max(tl.total*f,D?fs*f+D+300:0)+TRANS});
     const total=off-TRANS+HOLD,R=mode==='B'?[region(pg,[],true)]:groups.map(g=>region(pg,g,false)),ph=pg.ar||1.414;
     const CWb=clamp(Math.ceil(VW/Math.min(...R.map(r=>r.w))),VW,2200);
     const vc=document.createElement('canvas');vc.width=VW;vc.height=VH;const vg=vc.getContext('2d');
     const base=document.createElement('canvas');base.width=CWb;base.height=Math.round(CWb*ph);const bx=base.getContext('2d');
-    const P={vc,total,regions:R,T,CWb,mode,ci:0,last:-1,tip:null,col:'#111',first:T.length?T[0].s:0};
+    const P={vc,total,regions:R,T,CWb,mode,audio,ci:0,last:-1,tip:null,col:'#111',first:T.length?T[0].s:0};
     const reset=()=>{bx.clearRect(0,0,base.width,base.height);drawPage.lv=0;drawPage(bx,Object.assign({},pg,{items:pre}),CWb);P.ci=0;P.tip=null};
     const tipOf=(it,f)=>{if(x.isT(it)){const q=x.textTip(it,f,CWb);return[q[0]*CWb,q[1]*CWb]}
       const p=f>=1?it:x.part(it,f);return p.p&&p.p.length?[p.p[p.p.length-1][0]*CWb,p.p[p.p.length-1][1]*CWb]:null};
     const colOf=it=>(typeof inkOn==='function'?inkOn(it.c):it.c)||it.c||'#111';
     const cam=t=>{let r=R[0];for(let i=1;i<R.length;i++){const b=C[i],a=b-LEAD;if(t>=b)r=R[i];else if(t>a){const k=ease((t-a)/LEAD),p=R[i-1],q=R[i];r={x:p.x+(q.x-p.x)*k,y:p.y+(q.y-p.y)*k,w:p.w+(q.w-p.w)*k};break}else break}return r};
-    const pen=(px,py,col,al)=>{vg.save();vg.globalAlpha=al;vg.translate(px,py);vg.rotate(22*Math.PI/180);const k=VW/900*1.3;vg.scale(k,k);vg.translate(-12,-110);
+    const pen=(px,py,col,al)=>{vg.save();vg.globalAlpha=al;vg.translate(px,py);vg.rotate(22*Math.PI/180);const k=Math.min(VW,VH)/900*1.3;vg.scale(k,k);vg.translate(-12,-110);
       vg.lineJoin='round';vg.lineWidth=1.2;vg.strokeStyle='#fff';vg.shadowColor='rgba(0,0,0,.4)';vg.shadowBlur=6;vg.shadowOffsetY=2;
       const poly=(Pts,f)=>{vg.beginPath();Pts.forEach((q,i)=>i?vg.lineTo(q[0],q[1]):vg.moveTo(q[0],q[1]));vg.closePath();vg.fillStyle=f;vg.fill();vg.stroke()};
       poly([[12,100],[6.5,70],[8.5,3],[15.5,3],[17.5,70]],'#b9b9be');vg.shadowColor='transparent';poly([[12,110],[8.3,94],[15.7,94]],col);
@@ -6444,18 +6456,22 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
     };
     P.draw(0);return P;
   }
-  const pickMime=()=>typeof MediaRecorder==='undefined'?'':(MIMES.find(m=>MediaRecorder.isTypeSupported(m))||'');
+  const pickMime=a=>typeof MediaRecorder==='undefined'?'':((a?MIMES_A:MIMES).find(m=>MediaRecorder.isTypeSupported(m))||'');
   const fm=ms=>{const s=Math.floor(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
   const close=()=>{if(cancel)cancel();if(ov)ov.remove();ov=null};
   async function save(blob,type){
     const ext=/mp4/.test(type)?'mp4':'webm',f=new File([blob],'reel-'+Date.now()+'.'+ext,{type});
     try{if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f]});return}}catch(e){if(e&&e.name==='AbortError')return}
     const a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download=f.name;document.body.append(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(u)},1500)}
-  async function exportVideo(mode){
-    close();
+  async function exportVideo(mode,fmt,aud){
+    close();setFmt(fmt);
     if(typeof MediaRecorder==='undefined'||!HTMLCanvasElement.prototype.captureStream){gs('المتصفح ما بيدعم تسجيل الفيديو (جرّب 🧪 فحص)');return null}
-    const mime=pickMime();let P;
-    try{P=await prep(mode)}catch(e){gs('تعذّر تجهيز الفيديو: '+(e&&e.message||e));return null}
+    const pgv=X()&&X().vis();let actx=null;
+    if(aud!==false&&pgv&&pgv.nar&&Object.keys(pgv.nar).length&&window.__nar){try{actx=new (window.AudioContext||window.webkitAudioContext)();if(actx.resume)actx.resume()}catch(e){actx=null}}   /* لازم قبل أي await (سفاري) */
+    let P;
+    try{P=await prep(mode,actx)}catch(e){try{actx&&actx.close()}catch(_){}gs('تعذّر تجهيز الفيديو: '+(e&&e.message||e));return null}
+    const hasA=!!(actx&&P.audio.length);if(actx&&!hasA){try{actx.close()}catch(e){}actx=null}
+    const mime=pickMime(hasA);
     ov=document.createElement('div');ov.id='vxp';
     ov.style.cssText='position:fixed;inset:0;z-index:96;background:rgba(8,10,18,.96);color:#fff;direction:rtl;display:flex;flex-direction:column;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 12px calc(12px + env(safe-area-inset-bottom,0px));box-sizing:border-box;font:15px/1.6 system-ui,sans-serif';
     const msg=document.createElement('div');msg.id='vxpM';msg.style.cssText='font-weight:700;text-align:center';
@@ -6467,24 +6483,232 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
     return new Promise(res=>{
       let wl=null,done=false,raf=0,mr=null;const chunks=[];
       try{if(navigator.wakeLock)navigator.wakeLock.request('screen').then(l=>{wl=l}).catch(()=>{})}catch(e){}
-      const rel=()=>{try{if(wl)wl.release()}catch(e){}wl=null};
+      const rel=()=>{try{if(wl)wl.release()}catch(e){}wl=null;try{actx&&actx.close()}catch(e){}};
       cancel=()=>{if(done)return;done=true;cancelAnimationFrame(raf);rel();try{if(mr&&mr.state!=='inactive'){mr.onstop=null;mr.stop()}}catch(e){}cancel=null;res(null)};
       const vis=()=>{if(document.hidden&&!done){gs('انلغى التسجيل لأنك طلعت من الشاشة');close()}};document.addEventListener('visibilitychange',vis,{once:true});
-      try{mr=new MediaRecorder(P.vc.captureStream(30),Object.assign({videoBitsPerSecond:6e6},mime?{mimeType:mime}:{}))}catch(e){msg.textContent='❌ ما قدرت أبدأ التسجيل: '+(e&&e.message||e);cancel=null;res(null);return}
+      const vs=P.vc.captureStream(30);let dest=null;
+      if(hasA){try{dest=actx.createMediaStreamDestination();dest.stream.getAudioTracks().forEach(t=>vs.addTrack(t))}catch(e){dest=null}}
+      try{mr=new MediaRecorder(vs,Object.assign({videoBitsPerSecond:6e6},mime?{mimeType:mime}:{}))}catch(e){msg.textContent='❌ ما قدرت أبدأ التسجيل: '+(e&&e.message||e);cancel=null;res(null);return}
       mr.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
       mr.onstop=()=>{if(done)return;done=true;rel();cancel=null;document.removeEventListener('visibilitychange',vis);
         const type=mr.mimeType||mime||'video/webm',blob=new Blob(chunks,{type}),ok=blob.size>2000;
-        const last=window.__vexp.last={ok,size:blob.size,type,w:VW,h:VH,dur:Math.round(P.total),mode,blob};
-        msg.textContent=ok?'✅ جاهز: '+(blob.size/1048576).toFixed(1)+' MB · '+fm(P.total)+' · '+(/mp4/.test(type)?'mp4':'webm'):'❌ الملف طلع فاضي';
+        const last=window.__vexp.last={ok,size:blob.size,type,w:VW,h:VH,dur:Math.round(P.total),mode,audio:!!dest,blob};
+        msg.textContent=ok?'✅ جاهز: '+(blob.size/1048576).toFixed(1)+' MB · '+fm(P.total)+' · '+(/mp4/.test(type)?'mp4':'webm')+(dest?' · 🔊 مع الصوت':''):'❌ الملف طلع فاضي';
         if(ok){const sv=mk('💾 احفظ / شارك',()=>save(blob,type),'vxpS','#10b981');row.prepend(sv)}
         res(last)};
       const t0=performance.now();mr.start(500);
+      if(dest){const a0=actx.currentTime+.02;P.audio.forEach(a=>{try{const sn=actx.createBufferSource();sn.buffer=a.buf;sn.connect(dest);sn.connect(actx.destination);sn.start(a0+a.start/1000)}catch(e){}})}
       const tick=()=>{if(done)return;const t=performance.now()-t0;P.draw(t);msg.textContent='🔴 عم يسجّل '+fm(t)+' / '+fm(P.total)+' — خلّي الشاشة مفتوحة';
         if(t>=P.total){cancelAnimationFrame(raf);P.draw(P.total);try{mr.stop()}catch(e){}return}raf=requestAnimationFrame(tick)};
       setTimeout(()=>{if(!done)tick()},150);
     });
   }
-  window.__vexp={export:exportVideo,prep,close,last:null};
+  /* حوار الخيارات: الإطار (9:16 ريلز / 16:9 عادي)، القص، والصوت. بيتذكّر اختيارك */
+  const OK='nbvx';let o={f:'v',m:'A',a:1};try{Object.assign(o,JSON.parse(localStorage.getItem(OK)||'{}'))}catch(e){}
+  const keepO=()=>{try{localStorage.setItem(OK,JSON.stringify(o))}catch(e){}};
+  const options=()=>{const x=X();if(!x)return;const pg=x.vis(),ns=pg?x.scenesOf(pg).length:0,nn=pg&&pg.nar?Object.keys(pg.nar).length:0;
+    pick('🎥 تصدير فيديو',[
+      ['الإطار: '+(o.f==='v'?'ريلز 9:16 (عمودي)':'عادي 16:9 (أفقي)')+' ← اضغط للتبديل',()=>{o.f=o.f==='v'?'h':'v';keepO();options()}],
+      ['القص: '+(o.m==='A'?'على '+(ns?'المشهد':'الكتابة'):'الصفحة كاملة')+' ← اضغط للتبديل',()=>{o.m=o.m==='A'?'B':'A';keepO();options()}],
+      ['الصوت: '+(nn?(o.a?'مع شرحك 🔊 ('+nn+' من '+ns+' مقطع)':'بدون صوت'):'ما في تسجيل صوت (سجّلي من 🎬 ← 🎙)')+(nn?' ← اضغط للتبديل':''),()=>{if(nn){o.a=o.a?0:1;keepO();options()}else gs('سجّلي الشرح من 🎬 ← 🎙 شرح بالصوت أول')}],
+      ['🎥 ابدأ التصدير ('+(o.f==='v'?'1080×1920':'1920×1080')+')',()=>exportVideo(o.m,o.f,!!o.a)],
+      'التسجيل بالوقت الحقيقي: مدة الانتظار = مدة الفيديو، وخلّي الشاشة مفتوحة. مدة كل مشهد = مدة مقطعه الصوتي.'])};
+  window.__vexp={export:exportVideo,options,prep:(m,f,actx)=>{setFmt(f);return prep(m,actx)},close,last:null};
+})();
+/* ===== 📝 سكربت المشاهد (دفعة أ من «الشرح بالصوت») =====
+   كل مشهد 🎬 بالصفحة ممكن ينحط له نص الكلام اللي رح تحكيه. بيتخزن بـ pg.scr = {رقم_المشهد(it.sc): نص}
+   (حقل على الصفحة، مش على pg.items، وما في كود رسم/تصدير بيقراه). الرقم هو it.sc مش الترتيب، فحذف مشهد ما بيخربط الباقي.
+   من «🎬 ← 📝 سكربت المشاهد»: نص لكل مشهد، أو لصق السكربت كامل بفقرات (سطر فاضي بين كل فقرة) وبينوزّع على المشاهد بالترتيب،
+   وتقدير زمن الكلام، ونسخ كل السكربت. وبوضع «عرض المشاهد» زر 📝 بشريط 🎬 بيعرض نص المشهد الحالي (مخفي افتراضياً، لأنه بيبين بتسجيل الشاشة).
+   الدفعات الجاية: ب = تسجيل صوت الشرح مع أوقات النقرات (تلقين teleprompter)، ج = دمج الصوت بتصدير الفيديو.
+   بيستخدم من الـIIFE: dlg, mk, save, gs. وبيستخدم window.__replay.x (state, scenesOf, marks, vis). */
+(function(){
+  const WPS=2.3,K='nbscr';
+  const st=document.createElement('style');
+  st.textContent='.scrD .r{margin:8px 0;text-align:right}.scrD .r label{display:flex;justify-content:space-between;font-size:13px;opacity:.85;margin-bottom:3px}'
+  +'.scrD textarea{width:100%;box-sizing:border-box;font-size:16px;line-height:1.5;border-radius:10px;border:1.5px solid var(--line,#ccc);padding:8px;resize:vertical;min-height:58px;font-family:inherit;background:var(--card,#fff);color:inherit}'
+  +'.scrD .bx{max-height:46vh;overflow:auto;padding:2px}.scrD .tl{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.scrD .tl button{flex:1;min-width:120px}.scrD small{opacity:.7;display:block;margin-top:4px}'
+  +'#scrP{position:fixed;top:66px;left:50%;transform:translateX(-50%);z-index:139;max-width:min(640px,92vw);background:rgba(20,20,26,.9);color:#fff;border-radius:14px;padding:10px 16px;font-size:19px;line-height:1.55;text-align:right;direction:rtl;box-shadow:0 6px 22px rgba(0,0,0,.4);pointer-events:none;white-space:pre-wrap}'
+  +'#scrP b{display:block;font-size:12px;opacity:.65;margin-bottom:2px;font-weight:600}';
+  document.head.append(st);
+  const X=()=>window.__replay&&window.__replay.x;
+  const words=t=>(String(t).trim().match(/\S+/g)||[]).length;
+  const secs=t=>Math.round(words(t)/WPS);
+  const clean=t=>String(t).replace(/^\s*(مشهد\s*)?[\d٠-٩]+\s*[:.)\-–—]\s*/,'').trim();
+  /* تقسيم السكربت: فقرات مفصولة بسطر فاضي. (والتنظيف بيشيل «مشهد 1:» أو «1)» من أول الفقرة) */
+  const split=t=>String(t).replace(/\r/g,'').split(/\n\s*\n+/).map(clean).filter(Boolean);
+  function open(pg){
+    const x=X();if(!x){return}pg=pg||x.vis();if(!pg){gs('ما في صفحة ظاهرة');return}
+    const sc=x.scenesOf(pg);if(!sc.length){gs('ما في مشاهد بالصفحة. حدّد باللاسو واضغط «🎬 مشهد»');return}
+    pg.scr=pg.scr||{};
+    const w0=dlg.style.width,mh0=dlg.style.maxHeight;
+    dlg.textContent='';dlg.hidden=false;dlg.style.width='min(560px,94vw)';dlg.style.maxHeight='calc(100% - 60px)';dlg.classList.add('scrD');
+    const mo=new MutationObserver(()=>{if(dlg.hidden){dlg.style.width=w0;dlg.style.maxHeight=mh0;dlg.classList.remove('scrD');mo.disconnect()}});mo.observe(dlg,{attributes:true,attributeFilter:['hidden']});
+    try{x.marks(pg,20000)}catch(e){}
+    const box=document.createElement('div');box.className='bx';const tas=[];
+    const info=document.createElement('small');
+    const upd=()=>{let w=0,s=0,n=0;tas.forEach(t=>{const v=t.value.trim();if(v){n++;w+=words(v);s+=secs(v)}});info.textContent='مكتوب '+n+' من '+sc.length+' مشهد، '+w+' كلمة، ≈ '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0')+' دقيقة كلام'};
+    sc.forEach((g,i)=>{const r=document.createElement('div');r.className='r';const lb=document.createElement('label');const a=document.createElement('span'),c=document.createElement('span');
+      a.textContent='🎬 مشهد '+(i+1)+' ('+g.items.length+' عنصر)';const ta=document.createElement('textarea');ta.setAttribute('dir','auto');ta.rows=2;ta.placeholder='شو بدك تحكي عن هالمشهد؟';ta.value=pg.scr[g.n]||'';
+      const cc=()=>{c.textContent=ta.value.trim()?'≈ '+secs(ta.value)+' ث':''};ta.oninput=()=>{cc();upd()};cc();lb.append(a,c);r.append(lb,ta);box.append(r);tas.push(ta)});
+    const tl=document.createElement('div');tl.className='tl';
+    const pasteB=mk('button','','📋 لصق سكربت كامل وتوزيعه'),copyB=mk('button','','📤 انسخ السكربت'),clrB=mk('button','','🧹 فضّي الكل');
+    const paste=document.createElement('div');paste.hidden=true;const pt=document.createElement('textarea');pt.setAttribute('dir','auto');pt.rows=6;pt.placeholder='الصقي السكربت كامل: فقرة لكل مشهد، وبين كل فقرة سطر فاضي. (بيتوزّع على المشاهد بالترتيب)';
+    const pb=mk('button','primary','✔ وزّع على المشاهد');paste.append(pt,pb);
+    pasteB.onclick=()=>{paste.hidden=!paste.hidden;if(!paste.hidden)pt.focus()};
+    pb.onclick=()=>{const ps=split(pt.value);if(!ps.length){gs('ما في نص');return}
+      ps.slice(0,sc.length).forEach((t,i)=>{tas[i].value=t;tas[i].dispatchEvent(new Event('input'))});
+      gs(ps.length===sc.length?'✓ توزّع على '+sc.length+' مشاهد':ps.length>sc.length?'⚠ فيه '+ps.length+' فقرات والمشاهد '+sc.length+': دخلت أول '+sc.length+' بس':'⚠ فيه '+ps.length+' فقرات بس والمشاهد '+sc.length+': باقي المشاهد فاضية');paste.hidden=true;pt.value=''};
+    copyB.onclick=()=>{const t=sc.map((g,i)=>'مشهد '+(i+1)+':\n'+(tas[i].value.trim()||'—')).join('\n\n');
+      try{navigator.clipboard.writeText(t).then(()=>gs('انسخ السكربت ✓'),()=>gs('تعذّر النسخ'))}catch(e){gs('تعذّر النسخ')}};
+    clrB.onclick=()=>{tas.forEach(t=>{t.value='';t.dispatchEvent(new Event('input'))})};
+    tl.append(pasteB,copyB,clrB);
+    const ok=mk('button','primary','💾 احفظ'),x2=mk('button','','إلغاء');
+    ok.onclick=()=>{const keep={};sc.forEach((g,i)=>{const v=tas[i].value.trim();if(v)keep[g.n]=v});pg.scr=keep;if(!Object.keys(keep).length)delete pg.scr;
+      try{save()}catch(e){}dlg.hidden=true;gs('📝 انحفظ سكربت '+Object.keys(keep).length+' من '+sc.length+' مشهد')};
+    x2.onclick=()=>{dlg.hidden=true};
+    dlg.append(mk('b','','📝 سكربت المشاهد'),box,info,tl,paste,ok,x2);upd();
+  }
+  /* عرض نص المشهد الحالي أثناء «عرض المشاهد» (زر 📝 بالشريط). مخفي افتراضياً */
+  let force=false,shown=false;try{shown=localStorage.getItem(K)==='1'}catch(e){}
+  let P=null;
+  const kill=()=>{if(P){P.remove();P=null}};
+  const poll=()=>{const x=X();let S=null;try{S=x&&x.state()}catch(e){}
+    if(!S||S.nPre==null||!S.scEnds||!S.bar){kill();return}
+    if(!S.scB){const b=mk('button','','📝');b.title='عرض نص السكربت للمشهد الحالي (بيبين بتسجيل الشاشة)';b.onclick=e=>{e.stopPropagation();shown=!shown;try{localStorage.setItem(K,shown?'1':'0')}catch(_){}paint()};S.scB=b;S.bar.append(b)}
+    paint()};
+  const paint=()=>{const x=X();let S=null;try{S=x&&x.state()}catch(e){}if(!S||S.nPre==null||!S.scEnds){kill();return}
+    if(S.scB)S.scB.style.opacity=shown?1:.5;
+    if(!shown&&!force){kill();return}
+    const M=S.scEnds.length,d=S.scEnds.filter(e=>S.ci>e).length,k=S.fin?M-1:Math.min(M-1,d),g=x.scenesOf(S.pg)[k],t=g&&S.pg.scr&&S.pg.scr[g.n];
+    if(!t){kill();return}
+    if(!P){P=document.createElement('div');P.id='scrP';document.body.append(P)}
+    const head='مشهد '+(k+1)+' / '+M,txt=t;if(P._k!==head+txt){P._k=head+txt;P.textContent='';const h=document.createElement('b');h.textContent=head;P.append(h,txt)}};
+  setInterval(poll,250);
+  window.__scr={open,split,words,secs,get shown(){return shown},set shown(v){shown=!!v;paint()},set force(v){force=!!v;paint()}};
+})();
+/* ===== 🎙 شرح بالصوت (دفعة ب) =====
+   لكل مشهد 🎬 بيتسجّل مقطع صوت لحاله (مش ملف واحد): تحكي عن المشهد وهو عم ينكتب قدامك والسكربت (28g) قدامك بشكل تلقين.
+   ليش مقطع لكل مشهد؟ عشان تعيدي تسجيل أي مشهد لحاله بدون ما تخربطي الباقي، ولأنه مدة مشهد الفيديو = مدة مقطعه (دفعة ج).
+   التخزين: الصوت بـIndexedDB قاعدة 'nbnar' (مفتاح 'معرّف_الصفحة|رقم_المشهد' → {buf,mime,dur,ts})، و pg.nar = {رقم_المشهد: مدة_مل_ث} حقل صغير على الصفحة (مش على pg.items) بيتحفظ مع الدفتر.
+   المفتاح هو it.sc (الرقم الداخلي للمشهد) متل pg.scr. الصوت ما بيطلع مع تصدير الدفتر/نسخه (بس مع الجهاز).
+   بيستخدم window.__replay.x (state,toggle,paintBase,blit,redraw,scenesOf,vis) و window.__scr.force من 28g.
+   التسجيل بالتسلسل: نقرة = ينتهي مقطع المشهد الحالي وبيبدأ اللي بعده (وآخر نقرة بتنهي). الميكروفون بيضل مفتوح طول الجلسة، وكل مشهد MediaRecorder جديد. */
+(function(){
+  const X=()=>window.__replay&&window.__replay.x;
+  const MIMES=['audio/mp4;codecs=mp4a.40.2','audio/mp4','audio/webm;codecs=opus','audio/webm'];
+  const mimeOK=()=>{try{return MIMES.find(m=>MediaRecorder.isTypeSupported(m))||''}catch(e){return''}};
+  const fmt=ms=>{const s=Math.round(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+  const st=document.createElement('style');
+  st.textContent='.narD .r{display:flex;align-items:center;gap:6px;margin:7px 0;text-align:right;border:1.5px solid var(--line,#ddd);border-radius:10px;padding:7px 9px}.narD .r .i{flex:1;min-width:0}.narD .r .i b{display:block;font-size:14px}.narD .r .i small{display:block;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+  +'.narD .r button{min-width:42px;padding:6px 9px}.narD .bx{max-height:44vh;overflow:auto}.narD .tl{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.narD .tl button{flex:1;min-width:140px}.narD .h{font-size:12.5px;opacity:.75;margin:4px 0 2px;text-align:right}'
+  +'#nrBar{position:fixed;left:50%;transform:translateX(-50%);bottom:130px;z-index:141;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;max-width:94vw;background:rgba(24,24,28,.95);color:#fff;border-radius:16px;padding:9px 12px;box-shadow:0 8px 26px rgba(0,0,0,.45);font-size:14px;direction:rtl}'
+  +'#nrBar button{background:rgba(255,255,255,.14);color:#fff;border:0;border-radius:10px;padding:7px 11px;font-size:15px;cursor:pointer;min-width:40px}#nrBar button.rec{background:#dc2626}#nrBar button.x{background:#7f1d1d}'
+  +'#nrBar .t{min-width:96px;text-align:center;font-variant-numeric:tabular-nums}#nrBar .v{width:54px;height:8px;border-radius:5px;background:rgba(255,255,255,.2);overflow:hidden}#nrBar .v i{display:block;height:100%;width:0;background:#22c55e;transition:width .08s}';
+  document.head.append(st);
+  /* ---- التخزين ---- */
+  const db=new Promise(r=>{try{const q=indexedDB.open('nbnar',1);q.onupgradeneeded=()=>q.result.createObjectStore('c');q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}catch(e){r(null)}});
+  const io=async(m,k,v)=>{const d=await db;if(!d)throw new Error('التخزين مش متاح');return new Promise((res,rej)=>{try{const tx=d.transaction('c',m==='get'?'readonly':'readwrite'),s=tx.objectStore('c'),q=m==='get'?s.get(k):m==='del'?s.delete(k):s.put(v,k);
+    tx.oncomplete=()=>res(m==='get'?q.result:true);tx.onabort=tx.onerror=()=>rej(tx.error||new Error('فشل التخزين'))}catch(e){rej(e)}})};
+  const key=(pg,n)=>pg.id+'|'+n;
+  const get=(pg,n)=>io('get',key(pg,n));
+  const put=async(pg,n,buf,mime,dur)=>{await io('put',key(pg,n),{buf,mime,dur,ts:Date.now()});pg.nar=pg.nar||{};pg.nar[n]=dur;try{save()}catch(e){}};
+  const del=async(pg,n)=>{try{await io('del',key(pg,n))}catch(e){}if(pg.nar){delete pg.nar[n];if(!Object.keys(pg.nar).length)delete pg.nar}try{save()}catch(e){}};
+  const purge=pg=>{if(!pg||!pg.nar)return;Object.keys(pg.nar).forEach(n=>io('del',key(pg,n)).catch(()=>{}));delete pg.nar};
+  const blobOf=c=>new Blob([c.buf],{type:c.mime||'audio/mp4'});
+  /* ---- الحوار ---- */
+  let cur=null; /* الجلسة الجارية (تسجيل أو استماع) */
+  let audio=null;
+  const stopAudio=()=>{if(audio){try{audio.pause();URL.revokeObjectURL(audio.src)}catch(e){}audio=null}};
+  function open(pg){
+    const x=X();if(!x)return;pg=pg||x.vis();if(!pg){gs('ما في صفحة ظاهرة');return}
+    const sc=x.scenesOf(pg);if(!sc.length){gs('ما في مشاهد بالصفحة. حدّد باللاسو واضغط «🎬 مشهد»');return}
+    if(pg.nar){Object.keys(pg.nar).forEach(n=>{if(!sc.some(g=>String(g.n)===n))del(pg,n)})}   /* شيل صوت المشاهد اللي انشالت */
+    const w0=dlg.style.width,mh0=dlg.style.maxHeight;stopAudio();
+    dlg.textContent='';dlg.hidden=false;dlg.classList.add('narD');dlg.style.width='min(560px,94vw)';dlg.style.maxHeight='calc(100% - 60px)';
+    const mo=new MutationObserver(()=>{if(dlg.hidden){dlg.style.width=w0;dlg.style.maxHeight=mh0;dlg.classList.remove('narD');stopAudio();mo.disconnect()}});mo.observe(dlg,{attributes:true,attributeFilter:['hidden']});
+    const box=document.createElement('div');box.className='bx';
+    const done=sc.filter(g=>pg.nar&&pg.nar[g.n]).length,tot=sc.reduce((a,g)=>a+((pg.nar&&pg.nar[g.n])||0),0);
+    sc.forEach((g,i)=>{const r=document.createElement('div');r.className='r';const d=pg.nar&&pg.nar[g.n],t=pg.scr&&pg.scr[g.n];
+      const inf=document.createElement('div');inf.className='i';const b=document.createElement('b');b.textContent=(d?'🟢':'⚪')+' مشهد '+(i+1)+(d?' — '+fmt(d):' — ما في تسجيل');const sm=document.createElement('small');sm.textContent=t||'(بدون سكربت)';inf.append(b,sm);
+      const bp=mk('button','','▶'),bo=mk('button','','🎙'),bf=mk('button','','🎙⏩'),bd=mk('button','','🗑');
+      bp.title='استمع لتسجيل هالمشهد';bo.title='سجّل (أو أعد) هالمشهد بس';bf.title='سجّل من هالمشهد لآخر مشهد بالتسلسل';bd.title='احذف تسجيل هالمشهد';
+      bp.onclick=async()=>{if(!d){gs('ما في تسجيل لهالمشهد');return}stopAudio();try{const c=await get(pg,g.n);if(!c){gs('التسجيل مش موجود على هالجهاز');return}audio=new Audio(URL.createObjectURL(blobOf(c)));audio.onended=stopAudio;await audio.play()}catch(e){gs('تعذّر التشغيل: '+(e&&e.message||e))}};
+      bo.onclick=()=>{dlg.hidden=true;record(pg,i,i)};bf.onclick=()=>{dlg.hidden=true;record(pg,i,sc.length-1)};bd.onclick=async()=>{if(!d)return;await del(pg,g.n);open(pg)};
+      r.append(inf,...(d?[bp]:[]),bo,bf,...(d?[bd]:[]));box.append(r)});
+    const tl=document.createElement('div');tl.className='tl';
+    const allB=mk('button','primary','🎙 سجّل كل المشاهد بالتسلسل'),plB=mk('button','','▶ شغّل الشرح (صوت + كتابة)'),xB=mk('button','','إغلاق');
+    allB.onclick=()=>{dlg.hidden=true;record(pg,0,sc.length-1)};plB.onclick=()=>{if(!done){gs('ما في تسجيل لسا');return}dlg.hidden=true;play(pg)};xB.onclick=()=>{dlg.hidden=true};
+    tl.append(allB,plB);
+    const hint=document.createElement('div');hint.className='h';hint.textContent='🎙 هالمشهد بس · 🎙⏩ من هالمشهد لآخر مشهد. أثناء التسجيل: نقرة على الصفحة = بتخلّص المشهد وبتبدأ اللي بعده. '+(done?'المسجّل '+done+' من '+sc.length+' (≈ '+fmt(tot)+').':'')+(mimeOK()?'':' ⚠ المتصفح ما بيدعم تسجيل الصوت.');
+    dlg.append(mk('b','','🎙 شرح بالصوت'),box,tl,hint,xB);
+  }
+  /* ---- أدوات مشتركة لتشغيل مشهد بعينه بمحرّك 🎬 ---- */
+  const sceneIdx=(S,k)=>k===0?S.nPre:S.scEnds[k-1]+1;
+  const sceneStart=(k)=>{const x=X(),S=x&&x.state();if(!S||S.nPre==null)return false;const idx=sceneIdx(S,k);if(!S.T[idx])return false;
+    S.playing=false;S.fin=false;S.ci=idx;S.t=S.T[idx].s;x.paintBase(idx);x.blit();x.toggle();return true};
+  const bar=()=>{const b=document.createElement('div');b.id='nrBar';document.body.append(b);return b};
+  const endCur=()=>{if(!cur)return;const c=cur;cur=null;clearInterval(c.iv);cancelAnimationFrame(c.raf);try{c.bar.remove()}catch(e){}
+    if(c.stream)c.stream.getTracks().forEach(t=>{try{t.stop()}catch(e){}});try{c.ctx&&c.ctx.close()}catch(e){}try{c.wl&&c.wl.release()}catch(e){}
+    try{document.removeEventListener('keydown',c.kd,true)}catch(e){}stopAudio();if(window.__scr)window.__scr.force=false;const x=X();if(x&&x.state())window.__replay.stop();
+    if(!c.isPlay)setTimeout(()=>{try{open(c.pg)}catch(e){}},700)};
+  /* ---- التسجيل ---- */
+  async function record(pg,from,to){
+    const x=X();if(!x||cur)return;
+    const mime=mimeOK();if(!mime||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){gs('هالمتصفح ما بيدعم تسجيل الصوت');return}
+    let stream;try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}})}
+    catch(e){gs('ما قدرت أفتح الميكروفون ('+((e&&e.name)||'خطأ')+'). اسمحي بإذن الميكروفون للموقع');return}
+    window.__replay.scenes();const S=x.state();if(!S||S.nPre==null){stream.getTracks().forEach(t=>t.stop());return}
+    const sc=x.scenesOf(pg);S.scB=document.createElement('i');
+    document.removeEventListener('keydown',S.kd,true);S.bar.textContent='';S.bar.style.display='none';
+    const c={pg,sc,k:from,from,to,stream,mime,bar:bar(),rec:null,chunks:[],t0:0,stage:'ready',lock:0,saved:0};cur=c;
+    try{c.ctx=new (window.AudioContext||window.webkitAudioContext)();const src=c.ctx.createMediaStreamSource(stream);c.an=c.ctx.createAnalyser();c.an.fftSize=512;src.connect(c.an)}catch(e){}
+    try{if(navigator.wakeLock)c.wl=await navigator.wakeLock.request('screen')}catch(e){}
+    const lab=document.createElement('span');lab.className='t';const vu=document.createElement('span');vu.className='v';const vi=document.createElement('i');vu.append(vi);
+    const bX=mk('button','x','✕'),bR=mk('button','','↺ أعد المشهد'),bN=mk('button','rec','⏭ التالي'),bF=mk('button','','⏹ خلّصت');
+    bX.title='خروج (بيلغي المقطع الجاري)';bN.title='خلّص المشهد وابدأ اللي بعده (أو انقر على الصفحة)';bF.title='خلّص هالمقطع واطلع';bR.title='ألغي هالمقطع وابدأه من جديد';
+    c.bar.append(bX,bR,lab,vu,bN,bF);c.lab=lab;
+    window.__scr&&(window.__scr.force=true);
+    const label=()=>{const n=c.k+1,N=sc.length;lab.textContent=c.stage==='rec'?'🔴 '+fmt(performance.now()-c.t0)+' — مشهد '+n+'/'+N:'⚪ جاهزة — مشهد '+n+'/'+N+' (انقري لتبدأي)'};
+    const meter=()=>{c.raf=requestAnimationFrame(meter);if(c.an){const a=new Uint8Array(c.an.fftSize);c.an.getByteTimeDomainData(a);let m=0;for(let i=0;i<a.length;i++)m=Math.max(m,Math.abs(a[i]-128));vi.style.width=Math.min(100,m/90*100)+'%'}};
+    const sceneN=()=>sc[c.k].n;
+    const begin=()=>{c.chunks=[];c.discard=false;let r;try{r=new MediaRecorder(stream,{mimeType:mime})}catch(e){gs('تعذّر بدء التسجيل');return}
+      c.rec=r;const k=c.k,n=sceneN();c.lock=performance.now();
+      r.ondataavailable=e=>{if(e.data&&e.data.size)c.chunks.push(e.data)};
+      r.onstop=async()=>{if(r._discard)return;const blob=new Blob(r._chunks||c.chunks,{type:mime});
+        try{if(blob.size<500)throw new Error('التسجيل فاضي');await put(pg,n,await blob.arrayBuffer(),mime,r._dur||0);c.saved++}catch(e){gs('تعذّر حفظ المقطع: '+(e&&e.message||e))}};
+      r._chunks=c.chunks;r.start(250);c.t0=performance.now();c.stage='rec';sceneStart(k);label()};
+    const finishClip=(discard)=>{const r=c.rec;if(!r||r.state==='inactive'){c.rec=null;return}r._dur=Math.round(performance.now()-c.t0);r._discard=!!discard;try{r.stop()}catch(e){}c.rec=null;c.stage='ready'};
+    const next=()=>{if(performance.now()-c.lock<500)return;
+      if(c.stage==='ready'){begin();return}
+      finishClip(false);
+      if(c.k>=c.to){const n=c.saved;setTimeout(()=>{gs('✓ خلّصنا: '+n+' مقطع انحفظ 🎙');endCur()},400);return}
+      c.k++;begin()};
+    const redo=()=>{if(c.stage!=='rec')return;finishClip(true);begin()};
+    const fin=()=>{if(c.stage==='rec'){finishClip(false)}setTimeout(()=>{gs('✓ انحفظ '+c.saved+' مقطع 🎙');endCur()},400)};
+    bN.onclick=next;bR.onclick=redo;bF.onclick=fin;bX.onclick=()=>{finishClip(true);endCur();gs('اتلغى المقطع الجاري')};
+    S.cov.onclick=next;
+    c.kd=e=>{if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target&&e.target.tagName))return;if(e.key==='Escape'){bX.onclick()}else if(e.key===' '||e.key==='Enter'||e.key==='ArrowRight'){e.preventDefault();next()}};
+    document.addEventListener('keydown',c.kd,true);
+    /* المشهد الأول بالجلسة: عرض حالة البداية (مشهد from) بدون ما يشتغل الرسم */
+    {const idx=sceneIdx(S,from);S.playing=false;S.fin=false;S.ci=idx;S.t=S.T[idx].s;x.paintBase(idx);x.blit()}
+    c.iv=setInterval(()=>{if(!cur||cur!==c)return;if(!X()||!X().state()){try{finishClip(true)}catch(e){}endCur();return}label()},200);meter();label();
+    gs('🎙 جاهزة. انقري الصفحة وابدئي الشرح — كل نقرة بتنتقل للمشهد اللي بعده');
+  }
+  /* ---- الاستماع: صوت + كتابة ---- */
+  async function play(pg){
+    const x=X();if(!x||cur)return;const sc=x.scenesOf(pg);window.__replay.scenes();const S=x.state();if(!S||S.nPre==null)return;
+    S.scB=document.createElement('i');document.removeEventListener('keydown',S.kd,true);S.bar.textContent='';S.bar.style.display='none';
+    const c={pg,sc,k:0,bar:bar(),isPlay:1};cur=c;const lab=document.createElement('span');lab.className='t';const bX=mk('button','x','✕'),bS=mk('button','','⏭ المشهد التالي');c.bar.append(bX,lab,bS);window.__scr&&(window.__scr.force=true);
+    let tm=0;const go=async k=>{clearTimeout(tm);stopAudio();if(!cur||cur!==c)return;if(k>=sc.length){gs('✓ خلص الشرح');endCur();return}c.k=k;lab.textContent='▶ مشهد '+(k+1)+'/'+sc.length;
+      sceneStart(k);let cl=null;try{cl=await get(pg,sc[k].n)}catch(e){}
+      if(!cur||cur!==c)return;if(cl){audio=new Audio(URL.createObjectURL(blobOf(cl)));audio.onended=()=>go(k+1);try{await audio.play()}catch(e){tm=setTimeout(()=>go(k+1),(cl.dur||2000)+500)}}
+      else tm=setTimeout(()=>go(k+1),2500)};
+    bS.onclick=()=>go(c.k+1);bX.onclick=()=>{clearTimeout(tm);endCur()};S.cov.onclick=()=>go(c.k+1);
+    c.kd=e=>{if(e.key==='Escape')bX.onclick()};document.addEventListener('keydown',c.kd,true);
+    c.iv=setInterval(()=>{if(!cur||cur!==c)return;if(!X()||!X().state()){clearTimeout(tm);endCur()}},300);go(0);
+  }
+  window.__nar={open,record,play,get,put,del,purge,has:(pg,n)=>!!(pg.nar&&pg.nar[n]),mimeOK,get active(){return !!cur}};
 })();
 /* ---------- pinch / wheel zoom ---------- */
 let pz=null;const tdist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
