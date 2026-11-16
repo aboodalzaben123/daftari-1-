@@ -6303,8 +6303,82 @@ document.addEventListener('selectionchange',()=>{try{const s=getSelection();if(!
       ...(ns?[['🎬 عرض المشاهد ('+ns+') — ضغطة لكل مشهد',()=>startScenes()],['👁 حدود المشاهد',()=>showMarks(pg,7000)],['🗑 مسح المشاهد ('+ns+')',()=>clearScenes(pg)]]:[['🎬 مشاهد: حدّد باللاسو واضغط «🎬 مشهد» من شريط التحديد',()=>gs('حدّد باللاسو الجزء اللي بدك إياه مشهد، واضغط «🎬 مشهد»')]]),
       ['⏱ التوقيت: '+(rt?'حقيقي (سرعة كتابتك)':'محسوب (من طول الخط)')+' ← اضغط للتبديل',()=>{rt=rt?0:1;keep();gs(rt?'⏱ التوقيت الحقيقي':'⏱ التوقيت المحسوب')}],
       ['⏳ الوقفات بين الخطوط: '+GAPS[gm][0]+' ← اضغط للتبديل',()=>{gm=(gm+1)%3;keep();gs('⏳ الوقفات: '+GAPS[gm][0])}],
+      ['🧪 فحص تسجيل الفيديو (للآيباد)',()=>{if(window.__vprobe)window.__vprobe.run()}],
       'بيشتغل على الصفحة الظاهرة. التجميع والفواصل ✂ من ⚙ بوضع الكشف/التركيز. بتطلع بـ ✕ أو Esc.'])};
   window.__replay={scenes:startScenes,plan:(it,v)=>timeline(it,v||SPD[1][1]),opt:(a,b)=>{if(a!=null)rt=a;if(b!=null)gm=b},start:startReplay,reveal:g=>startReveal('v',g),focus:g=>startReveal('f',g),stop,get active(){return S?S.mode:''}};
+})();
+/* ===== 🧪 فحص تسجيل الفيديو (للآيباد) =====
+   بيفحص جهازك قبل ما نبني تصدير الفيديو: MediaRecorder وcaptureStream، الصيغ المدعومة (mp4 أو webm)،
+   تسجيل تجريبي فعلي 2 ث بحجم 9:16 (720×1280 ثم 1080×1920)، تشغيل الناتج، ومشاركة الملف.
+   النتيجة بتنعرض وبتنسخ بزر. المدخل: قائمة 🎬 ← «🧪 فحص تسجيل الفيديو». جسر: window.__vprobe.run() (بيرجّع وعد) و.last */
+(function(){
+  const MIMES=['video/mp4;codecs=avc1.42E01E','video/mp4;codecs=avc1','video/mp4;codecs=h264','video/mp4','video/webm;codecs=h264','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  async function recTest(w,h,mime,ms){
+    const out={w,h,mime:mime||'(الافتراضي)',ok:false};
+    try{
+      if(typeof MediaRecorder==='undefined'){out.err='MediaRecorder مش موجود';return out}
+      const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+      if(!cv.captureStream){out.err='captureStream مش موجود';return out}
+      const g=cv.getContext('2d');let stop=false,n=0;const t0=performance.now();
+      const draw=()=>{if(stop)return;n++;const t=(performance.now()-t0)/1000;
+        g.fillStyle='#fff';g.fillRect(0,0,w,h);g.fillStyle='#111';g.font=Math.round(w/10)+'px sans-serif';g.fillText('Test '+t.toFixed(1)+'s',w*.1,h*.3);
+        g.strokeStyle='#e11d48';g.lineWidth=Math.max(3,w/60);g.beginPath();g.moveTo(w*.1,h*.5);
+        for(let i=0;i<=60;i++){const x=w*.1+w*.8*Math.min(1,t/(ms/1000))*i/60,y=h*.5+Math.sin(i/4+t*5)*h*.05;g.lineTo(x,y)}g.stroke();requestAnimationFrame(draw)};
+      const stream=cv.captureStream(30),mr=new MediaRecorder(stream,Object.assign({videoBitsPerSecond:4e6},mime?{mimeType:mime}:{})),chunks=[];
+      mr.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+      const done=new Promise(r=>{mr.onstop=r});
+      draw();mr.start(250);await wait(ms);mr.stop();await done;stop=true;
+      const type=mr.mimeType||mime||'',blob=new Blob(chunks,{type});
+      Object.assign(out,{ok:blob.size>1000,size:blob.size,type,chunks:chunks.length,fps:Math.round(n/(ms/1000)),blob});
+    }catch(e){out.err=String(e&&e.message||e)}
+    return out;
+  }
+  const playInfo=blob=>new Promise(res=>{
+    const v=document.createElement('video');v.muted=true;v.playsInline=true;const u=URL.createObjectURL(blob);let fin=false;
+    const end=r=>{if(fin)return;fin=true;URL.revokeObjectURL(u);res(r)};
+    v.onloadedmetadata=()=>end({w:v.videoWidth,h:v.videoHeight,dur:isFinite(v.duration)?Math.round(v.duration*10)/10:'غير محدّدة (عادي بـ webm)'});
+    v.onerror=()=>end({err:'ما قدر يشغّل الملف'});setTimeout(()=>end({err:'انتهت المهلة (3 ث)'}),3000);v.src=u;v.load()});
+  const ok=b=>b?'✅':'❌',kb=n=>Math.round(n/1024)+' KB';
+  let ov=null,vid=null;
+  const close=()=>{if(ov)ov.remove();ov=null;vid=null};
+  async function save(){
+    if(!vid)return;const ext=/mp4/.test(vid.type)?'mp4':'webm',f=new File([vid.blob],'test-9x16.'+ext,{type:vid.type});
+    try{if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f]});return}}catch(e){if(e&&e.name==='AbortError')return}
+    const a=document.createElement('a'),u=URL.createObjectURL(vid.blob);a.href=u;a.download=f.name;document.body.append(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(u)},1500)}
+  function copy(t){
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(()=>{try{gs('اننسخت النتيجة ✓')}catch(e){}});return}}catch(e){}
+    const ta=document.createElement('textarea');ta.value=t;document.body.append(ta);ta.select();try{document.execCommand('copy');gs('اننسخت النتيجة ✓')}catch(e){}ta.remove()}
+  async function run(){
+    close();
+    ov=document.createElement('div');ov.id='vpr';
+    ov.style.cssText='position:fixed;inset:0;z-index:96;background:rgba(8,10,18,.95);color:#fff;direction:rtl;display:flex;flex-direction:column;padding:calc(12px + env(safe-area-inset-top,0px)) 14px calc(12px + env(safe-area-inset-bottom,0px));box-sizing:border-box;font:15px/1.7 system-ui,sans-serif';
+    const pre=document.createElement('pre');pre.id='vprT';pre.style.cssText='flex:1;overflow:auto;white-space:pre-wrap;margin:0 0 10px;font:14px/1.75 ui-monospace,Menlo,monospace;direction:rtl;text-align:right';pre.textContent='🧪 عم أفحص… (حوالي 6 ثواني، لا تطلع من الشاشة)';
+    const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;flex-wrap:wrap';
+    const mk=(t,f,id)=>{const b=document.createElement('button');b.type='button';b.id=id;b.textContent=t;b.onclick=f;b.style.cssText='background:rgba(255,255,255,.16);color:#fff;border:0;border-radius:10px;padding:0 14px;height:44px;font-size:15px;cursor:pointer';return b};
+    row.append(mk('📋 انسخ النتيجة',()=>copy(pre.textContent),'vprC'),mk('💾 احفظ فيديو الاختبار',save,'vprS'),mk('✕ سكّر',close,'vprX'));
+    ov.append(pre,row);document.body.append(ov);
+    const info={ua:navigator.userAgent,mr:typeof MediaRecorder!=='undefined',cs:!!(window.HTMLCanvasElement&&HTMLCanvasElement.prototype.captureStream),share:!!navigator.share,canShare:!!navigator.canShare};
+    info.sup=info.mr?MIMES.map(m=>[m,MediaRecorder.isTypeSupported(m)]):MIMES.map(m=>[m,false]);
+    const best=(info.sup.find(x=>x[1]&&/mp4/.test(x[0]))||info.sup.find(x=>x[1])||[''])[0];
+    const results=[];let r1=await recTest(720,1280,best,2000);results.push(r1);
+    let p1=null;if(r1.ok)p1=await playInfo(r1.blob);
+    let r2=null,p2=null;if(r1.ok){r2=await recTest(1080,1920,best,2000);results.push(r2);if(r2.ok)p2=await playInfo(r2.blob)}
+    vid=(r2&&r2.ok?r2:r1&&r1.ok?r1:null);
+    let sh='—';if(vid){try{const f=new File([vid.blob],'t.'+(/mp4/.test(vid.type)?'mp4':'webm'),{type:vid.type});sh=navigator.canShare?ok(navigator.canShare({files:[f]})):'❌ (canShare مش موجود)'}catch(e){sh='❌ '+e.message}}
+    const L=[];L.push('🧪 نتيجة فحص تسجيل الفيديو');L.push('الجهاز: '+info.ua.replace(/\s+/g,' ').slice(0,150));L.push('');
+    L.push('MediaRecorder: '+ok(info.mr)+'   captureStream: '+ok(info.cs));
+    L.push('مشاركة ملفات (Share): '+ok(info.share)+'   canShare(files): '+sh);L.push('');L.push('الصيغ المدعومة:');info.sup.forEach(x=>L.push('  '+ok(x[1])+' '+x[0]));L.push('');
+    results.forEach((r,i)=>{const p=i?p2:p1;L.push('تسجيل '+r.w+'×'+r.h+' ('+r.mime+'): '+(r.ok?'✅ '+kb(r.size)+' | '+r.type+' | '+r.fps+' رسم/ث | '+r.chunks+' قطعة':'❌ '+(r.err||'فشل (حجم صغير)')));
+      if(p)L.push('   تشغيل الناتج: '+(p.err?'❌ '+p.err:'✅ '+p.w+'×'+p.h+' مدة '+p.dur))});
+    if(!results.length||!r1.ok){if(!results.length)L.push('تسجيل: ❌ ما صار')}
+    const t=vid&&vid.type||'',verdict=!vid?'❌ ما في تسجيل فيديو بهالمتصفح':/mp4/.test(t)?'✅ mp4 مباشرة: إنستغرام/تيك توك بيقبلوه، ما في حاجة لتحويل':'⚠️ webm بس: إنستغرام ما بيقبله، لازم تحويل لـ mp4 (بنشوف طريقة)';
+    L.push('');L.push('الخلاصة: '+verdict);L.push('');L.push('زر «احفظ فيديو الاختبار» بيحفظه/بيشاركه: جرّب تفتحه من الصور وتحطه كريلز تجريبي.');
+    const text=L.join('\n');if(pre.isConnected)pre.textContent=text;
+    window.__vprobe.last={info:{mr:info.mr,cs:info.cs,share:info.share,canShare:info.canShare,sup:info.sup},results:results.map(r=>({w:r.w,h:r.h,ok:r.ok,size:r.size||0,type:r.type||'',err:r.err||''})),play:[p1,p2],verdict,text};
+    return window.__vprobe.last;
+  }
+  window.__vprobe={run,close,last:null};
 })();
 /* ---------- pinch / wheel zoom ---------- */
 let pz=null;const tdist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
